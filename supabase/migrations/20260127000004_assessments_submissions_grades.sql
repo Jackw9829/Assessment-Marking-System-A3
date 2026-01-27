@@ -532,15 +532,9 @@ BEGIN
 			WITH CHECK (bucket_id = 'submissions' AND is_admin());
 		END IF;
 
-		COMMENT ON POLICY "storage: students can upload own submissions" ON storage.objects IS 'Students can upload files to assessment_id/student_id/ folders for enrolled courses';
-		COMMENT ON POLICY "storage: instructors can view course submissions" ON storage.objects IS 'Instructors can view submission files from their courses';
-
 	ELSE
 		RAISE NOTICE 'Skipping storage bucket/policies because current_user is %, not postgres', current_user;
 	END IF;
 END $$;
 -- =============================================
--- 3. COMMENTS FOR DOCUMENTATION
--- =============================================
-
--- Comments are emitted only when storage policies were created above
+-- Comments omitted for storage policies to avoid ownership issues
