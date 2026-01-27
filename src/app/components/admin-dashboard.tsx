@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { supabaseAnonKey, supabaseFunctionsBase } from '@/lib/supabase-config';
 import { Separator } from './ui/separator';
 
 interface AdminDashboardProps {
@@ -24,12 +24,12 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
-  
+
   // Course creation state
   const [courseName, setCourseName] = useState('');
   const [courseDesc, setCourseDesc] = useState('');
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
-  
+
   // Grade verification state
   const [selectedGrade, setSelectedGrade] = useState<any>(null);
 
@@ -41,23 +41,23 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
     try {
       // Fetch courses
       const coursesRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/courses`,
-        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/courses`,
+        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
       );
       const coursesData = await coursesRes.json();
       setCourses(Array.isArray(coursesData) ? coursesData : []);
 
       // Fetch assessments
       const assessmentsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/assessments`,
-        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/assessments`,
+        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
       );
       const assessmentsData = await assessmentsRes.json();
       setAssessments(Array.isArray(assessmentsData) ? assessmentsData : []);
 
       // Fetch submissions
       const submissionsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/submissions`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/submissions`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
       const submissionsData = await submissionsRes.json();
@@ -65,7 +65,7 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
 
       // Fetch all grades
       const gradesRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/grades`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/grades`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
       const gradesData = await gradesRes.json();
@@ -101,22 +101,22 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
       console.log('Access token length:', accessToken?.length);
       console.log('User profile:', userProfile);
       console.log('User role:', userProfile?.role);
-      
-      const url = `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/courses`;
+
+      const url = `${supabaseFunctionsBase}/make-server-f64b0eb2/courses`;
       console.log('Request URL:', url);
-      
+
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       };
       console.log('Request headers:', headers);
-      
+
       const body = JSON.stringify({
         name: courseName,
         description: courseDesc,
       });
       console.log('Request body:', body);
-      
+
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -125,7 +125,7 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
 
       console.log('Response status:', response.status);
       console.log('Response status text:', response.statusText);
-      
+
       const responseData = await response.json();
       console.log('Response data:', responseData);
       console.log('=== CREATE COURSE DEBUG END ===');
@@ -149,7 +149,7 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
   const handleVerifyGrade = async (gradeId: string, verified: boolean) => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/grades/${gradeId}/verify`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/grades/${gradeId}/verify`,
         {
           method: 'PUT',
           headers: {
@@ -269,7 +269,7 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
                     pendingGrades.map((grade) => {
                       const submission = submissions.find(s => s.id === grade.submissionId);
                       const assessment = assessments.find(a => a.id === grade.assessmentId);
-                      
+
                       return (
                         <div key={grade.id} className="p-4 border rounded-lg space-y-3">
                           <div className="flex justify-between items-start">
@@ -351,7 +351,7 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
                     verifiedGrades.slice(0, 5).map((grade) => {
                       const submission = submissions.find(s => s.id === grade.submissionId);
                       const assessment = assessments.find(a => a.id === grade.assessmentId);
-                      
+
                       return (
                         <div key={grade.id} className="p-4 border rounded-lg">
                           <div className="flex justify-between items-start">

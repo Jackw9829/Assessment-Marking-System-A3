@@ -9,7 +9,7 @@ import { Upload, Download, FileText, Bell, Award, LogOut } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { supabaseAnonKey, supabaseFunctionsBase } from '@/lib/supabase-config';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -36,9 +36,9 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
     try {
       // Fetch materials
       const materialsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/materials`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/materials`,
         {
-          headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+          headers: { 'Authorization': `Bearer ${supabaseAnonKey}` }
         }
       );
       const materialsData = await materialsRes.json();
@@ -46,9 +46,9 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
       // Fetch assessments
       const assessmentsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/assessments`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/assessments`,
         {
-          headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+          headers: { 'Authorization': `Bearer ${supabaseAnonKey}` }
         }
       );
       const assessmentsData = await assessmentsRes.json();
@@ -56,7 +56,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
       // Fetch submissions
       const submissionsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/submissions?studentId=${userProfile.id}`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/submissions?studentId=${userProfile.id}`,
         {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }
@@ -66,7 +66,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
       // Fetch grades
       const gradesRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/grades?studentId=${userProfile.id}`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/grades?studentId=${userProfile.id}`,
         {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }
@@ -76,7 +76,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
       // Fetch notifications
       const notificationsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/notifications`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/notifications`,
         {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }
@@ -86,7 +86,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
       // Fetch student report
       const reportRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/reports/student/${userProfile.id}`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/reports/student/${userProfile.id}`,
         {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }
@@ -102,7 +102,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
   const handleDownloadMaterial = async (materialId: string) => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/materials/${materialId}/download`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/materials/${materialId}/download`,
         {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         }
@@ -137,7 +137,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
       formData.append('assessmentId', selectedAssessment);
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/submissions`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/submissions`,
         {
           method: 'POST',
           headers: {

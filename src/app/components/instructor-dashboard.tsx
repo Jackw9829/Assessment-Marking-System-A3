@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { supabaseAnonKey, supabaseFunctionsBase } from '@/lib/supabase-config';
 
 interface InstructorDashboardProps {
   accessToken: string;
@@ -22,14 +22,14 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const [assessments, setAssessments] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
-  
+
   // Material upload state
   const [materialTitle, setMaterialTitle] = useState('');
   const [materialDesc, setMaterialDesc] = useState('');
   const [materialCourse, setMaterialCourse] = useState('');
   const [materialFile, setMaterialFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   // Assessment creation state
   const [assessmentTitle, setAssessmentTitle] = useState('');
   const [assessmentDesc, setAssessmentDesc] = useState('');
@@ -37,12 +37,12 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const [assessmentDue, setAssessmentDue] = useState('');
   const [assessmentMarks, setAssessmentMarks] = useState('100');
   const [isCreating, setIsCreating] = useState(false);
-  
+
   // Course creation state
   const [courseName, setCourseName] = useState('');
   const [courseDesc, setCourseDesc] = useState('');
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
-  
+
   // Grading state
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [gradeScore, setGradeScore] = useState('');
@@ -57,31 +57,31 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     try {
       // Fetch courses
       const coursesRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/courses`,
-        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/courses`,
+        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
       );
       const coursesData = await coursesRes.json();
       setCourses(Array.isArray(coursesData) ? coursesData : []);
 
       // Fetch materials
       const materialsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/materials`,
-        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/materials`,
+        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
       );
       const materialsData = await materialsRes.json();
       setMaterials(Array.isArray(materialsData) ? materialsData : []);
 
       // Fetch assessments
       const assessmentsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/assessments`,
-        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/assessments`,
+        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
       );
       const assessmentsData = await assessmentsRes.json();
       setAssessments(Array.isArray(assessmentsData) ? assessmentsData : []);
 
       // Fetch submissions
       const submissionsRes = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/submissions`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/submissions`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
       const submissionsData = await submissionsRes.json();
@@ -108,7 +108,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
       formData.append('courseId', materialCourse);
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/materials/upload`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/materials/upload`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${accessToken}` },
@@ -142,7 +142,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/assessments`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/assessments`,
         {
           method: 'POST',
           headers: {
@@ -188,9 +188,9 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
       console.log('Creating course with data:', { name: courseName, description: courseDesc });
       console.log('Using access token:', accessToken ? 'Token present' : 'No token');
       console.log('User profile:', userProfile);
-      
+
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/courses`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/courses`,
         {
           method: 'POST',
           headers: {
@@ -233,9 +233,9 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
     try {
       const assessment = assessments.find(a => a.id === selectedSubmission.assessmentId);
-      
+
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/grades`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/grades`,
         {
           method: 'POST',
           headers: {
@@ -269,7 +269,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const handleDownloadSubmission = async (submissionId: string) => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f64b0eb2/submissions/${submissionId}/download`,
+        `${supabaseFunctionsBase}/make-server-f64b0eb2/submissions/${submissionId}/download`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
 
@@ -386,7 +386,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                 </Button>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>My Courses</CardTitle>
