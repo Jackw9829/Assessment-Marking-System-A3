@@ -418,140 +418,129 @@ COMMENT ON POLICY "submissions: students can submit to enrolled courses" ON subm
 COMMENT ON POLICY "grades: instructors can grade own courses" ON grades IS 'Instructors can only grade submissions from their own courses';
 
 -- =============================================
--- Storage Policies for Submissions
--- Migration: 20260127000006
--- =============================================
+-- Storage policies need bucket ownership; when not the owner, skip and run manually with the project service key or in the Dashboard SQL editor as "postgres".
+DO $$
+BEGIN
+	IF current_user = 'postgres' THEN
 
--- Use elevated role for storage objects (required to manage storage.objects policies)
-SET LOCAL ROLE postgres;
+		-- =============================================
+		-- 1. CREATE SUBMISSIONS STORAGE BUCKET
+		-- =============================================
 
--- =============================================
--- 1. CREATE SUBMISSIONS STORAGE BUCKET
--- =============================================
+		INSERT INTO storage.buckets (id, name, public)
+		VALUES ('submissions', 'submissions', false)
+		ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('submissions', 'submissions', false)
-ON CONFLICT (id) DO NOTHING;
+		-- =============================================
+		-- 2. STORAGE POLICIES FOR SUBMISSIONS
+		-- =============================================
 
--- =============================================
--- 2. STORAGE POLICIES FOR SUBMISSIONS
--- =============================================
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can upload own submissions'
+		) THEN
+			CREATE POLICY "storage: students can upload own submissions"
+			ON storage.objects FOR INSERT
+			WITH CHECK (
+				bucket_id = 'submissions' AND
+				is_student() AND
+				(storage.foldername(name))[1] IN (
+					SELECT assessments.id::text
+					FROM assessments
+					JOIN course_enrollments ON assessments.course_id = course_enrollments.course_id
+					WHERE course_enrollments.student_id = auth.uid()
+				) AND
+				(storage.foldername(name))[2] = auth.uid()::text
+			);
+		END IF;
 
-DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can upload own submissions'
-	) THEN
-		CREATE POLICY "storage: students can upload own submissions"
-		ON storage.objects FOR INSERT
-		WITH CHECK (
-			bucket_id = 'submissions' AND
-			is_student() AND
-			(storage.foldername(name))[1] IN (
-				SELECT assessments.id::text
-				FROM assessments
-				JOIN course_enrollments ON assessments.course_id = course_enrollments.course_id
-				WHERE course_enrollments.student_id = auth.uid()
-			) AND
-			(storage.foldername(name))[2] = auth.uid()::text
-		);
-	END IF;
-END $$;
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can view own submissions'
+		) THEN
+			CREATE POLICY "storage: students can view own submissions"
+			ON storage.objects FOR SELECT
+			USING (
+				bucket_id = 'submissions' AND
+				is_student() AND
+				(storage.foldername(name))[2] = auth.uid()::text
+			);
+		END IF;
 
-DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can view own submissions'
-	) THEN
-		CREATE POLICY "storage: students can view own submissions"
-		ON storage.objects FOR SELECT
-		USING (
-			bucket_id = 'submissions' AND
-			is_student() AND
-			(storage.foldername(name))[2] = auth.uid()::text
-		);
-	END IF;
-END $$;
-
-DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can update own ungraded submissions'
-	) THEN
-		CREATE POLICY "storage: students can update own ungraded submissions"
-		ON storage.objects FOR UPDATE
-		USING (
-			bucket_id = 'submissions' AND
-			is_student() AND
-			(storage.foldername(name))[2] = auth.uid()::text AND
-			EXISTS (
-				SELECT 1 FROM submissions
-				WHERE submissions.file_path = storage.objects.name
-				AND submissions.student_id = auth.uid()
-				AND submissions.status = 'submitted'
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can update own ungraded submissions'
+		) THEN
+			CREATE POLICY "storage: students can update own ungraded submissions"
+			ON storage.objects FOR UPDATE
+			USING (
+				bucket_id = 'submissions' AND
+				is_student() AND
+				(storage.foldername(name))[2] = auth.uid()::text AND
+				EXISTS (
+					SELECT 1 FROM submissions
+					WHERE submissions.file_path = storage.objects.name
+					AND submissions.student_id = auth.uid()
+					AND submissions.status = 'submitted'
+				)
 			)
-		)
-		WITH CHECK (
-			bucket_id = 'submissions' AND
-			is_student() AND
-			(storage.foldername(name))[2] = auth.uid()::text
-		);
+			WITH CHECK (
+				bucket_id = 'submissions' AND
+				is_student() AND
+				(storage.foldername(name))[2] = auth.uid()::text
+			);
+		END IF;
+
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can delete own ungraded submissions'
+		) THEN
+			CREATE POLICY "storage: students can delete own ungraded submissions"
+			ON storage.objects FOR DELETE
+			USING (
+				bucket_id = 'submissions' AND
+				is_student() AND
+				(storage.foldername(name))[2] = auth.uid()::text AND
+				EXISTS (
+					SELECT 1 FROM submissions
+					WHERE submissions.file_path = storage.objects.name
+					AND submissions.student_id = auth.uid()
+					AND submissions.status = 'submitted'
+				)
+			);
+		END IF;
+
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: instructors can view course submissions'
+		) THEN
+			CREATE POLICY "storage: instructors can view course submissions"
+			ON storage.objects FOR SELECT
+			USING (
+				bucket_id = 'submissions' AND
+				is_instructor() AND
+				(storage.foldername(name))[1] IN (
+					SELECT assessments.id::text
+					FROM assessments
+					JOIN courses ON assessments.course_id = courses.id
+					WHERE courses.instructor_id = auth.uid()
+				)
+			);
+		END IF;
+
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: admins full access submissions'
+		) THEN
+			CREATE POLICY "storage: admins full access submissions"
+			ON storage.objects FOR ALL
+			USING (bucket_id = 'submissions' AND is_admin())
+			WITH CHECK (bucket_id = 'submissions' AND is_admin());
+		END IF;
+
+		COMMENT ON POLICY "storage: students can upload own submissions" ON storage.objects IS 'Students can upload files to assessment_id/student_id/ folders for enrolled courses';
+		COMMENT ON POLICY "storage: instructors can view course submissions" ON storage.objects IS 'Instructors can view submission files from their courses';
+
+	ELSE
+		RAISE NOTICE 'Skipping storage bucket/policies because current_user is %, not postgres', current_user;
 	END IF;
 END $$;
-
-DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: students can delete own ungraded submissions'
-	) THEN
-		CREATE POLICY "storage: students can delete own ungraded submissions"
-		ON storage.objects FOR DELETE
-		USING (
-			bucket_id = 'submissions' AND
-			is_student() AND
-			(storage.foldername(name))[2] = auth.uid()::text AND
-			EXISTS (
-				SELECT 1 FROM submissions
-				WHERE submissions.file_path = storage.objects.name
-				AND submissions.student_id = auth.uid()
-				AND submissions.status = 'submitted'
-			)
-		);
-	END IF;
-END $$;
-
-DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: instructors can view course submissions'
-	) THEN
-		CREATE POLICY "storage: instructors can view course submissions"
-		ON storage.objects FOR SELECT
-		USING (
-			bucket_id = 'submissions' AND
-			is_instructor() AND
-			(storage.foldername(name))[1] IN (
-				SELECT assessments.id::text
-				FROM assessments
-				JOIN courses ON assessments.course_id = courses.id
-				WHERE courses.instructor_id = auth.uid()
-			)
-		);
-	END IF;
-END $$;
-
-DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND policyname = 'storage: admins full access submissions'
-	) THEN
-		CREATE POLICY "storage: admins full access submissions"
-		ON storage.objects FOR ALL
-		USING (bucket_id = 'submissions' AND is_admin())
-		WITH CHECK (bucket_id = 'submissions' AND is_admin());
-	END IF;
-END $$;
-
 -- =============================================
 -- 3. COMMENTS FOR DOCUMENTATION
 -- =============================================
 
-COMMENT ON POLICY "storage: students can upload own submissions" ON storage.objects IS 'Students can upload files to assessment_id/student_id/ folders for enrolled courses';
-COMMENT ON POLICY "storage: instructors can view course submissions" ON storage.objects IS 'Instructors can view submission files from their courses';
-
--- Reset role after storage changes
-RESET ROLE;
+-- Comments are emitted only when storage policies were created above
