@@ -22,7 +22,7 @@ git commit -m "Initial commit: Assessment & Marking System with role-based auth"
 
 # Create repository on GitHub.com
 # Then connect it:
-git remote add origin https://github.com/YOUR_USERNAME/Assessment_&_Marking_System.git
+git remote add origin https://github.com/Jackw9829/Assessment-Marking-System-A3.git
 git branch -M main
 git push -u origin main
 ```
@@ -57,11 +57,11 @@ git push -u origin main
 2. **Authentication** → **URL Configuration**
 3. Add to **Site URL**:
    ```
-   https://YOUR_USERNAME.github.io/Assessment_&_Marking_System
+   https://Jackw9829.github.io/Assessment-Marking-System-A3
    ```
 4. Add to **Redirect URLs**:
    ```
-   https://YOUR_USERNAME.github.io/Assessment_&_Marking_System/**
+   https://Jackw9829.github.io/Assessment-Marking-System-A3/**
    http://localhost:5173/**
    ```
 
@@ -81,7 +81,7 @@ git push origin main
 
 **Access your site:**
 ```
-https://YOUR_USERNAME.github.io/Assessment_&_Marking_System/
+https://Jackw9829.github.io/Assessment-Marking-System-A3/
 ```
 
 ## Testing After Deployment
@@ -202,9 +202,9 @@ git push origin main --force
 
 ## Links
 
-- **Live Site:** `https://YOUR_USERNAME.github.io/Assessment_&_Marking_System/`
-- **Repository:** `https://github.com/YOUR_USERNAME/Assessment_&_Marking_System`
-- **Actions:** `https://github.com/YOUR_USERNAME/Assessment_&_Marking_System/actions`
+- **Live Site:** `https://Jackw9829.github.io/Assessment-Marking-System-A3/`
+- **Repository:** `https://github.com/Jackw9829/Assessment-Marking-System-A3`
+- **Actions:** `https://github.com/Jackw9829/Assessment-Marking-System-A3/actions`
 - **Supabase:** `https://app.supabase.com/project/YOUR_PROJECT_ID`
 
 ---

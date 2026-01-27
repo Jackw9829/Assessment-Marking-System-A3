@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   // GitHub Pages deployment configuration
-  base: process.env.NODE_ENV === 'production' ? '/Assessment_&_Marking_System/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/Assessment-Marking-System-A3/' : '/',
   build: {
     outDir: 'dist',
     sourcemap: true,
