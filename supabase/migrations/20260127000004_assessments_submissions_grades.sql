@@ -422,6 +422,9 @@ COMMENT ON POLICY "grades: instructors can grade own courses" ON grades IS 'Inst
 -- Migration: 20260127000006
 -- =============================================
 
+-- Use elevated role for storage objects (required to manage storage.objects policies)
+SET LOCAL ROLE postgres;
+
 -- =============================================
 -- 1. CREATE SUBMISSIONS STORAGE BUCKET
 -- =============================================
@@ -549,3 +552,6 @@ END $$;
 
 COMMENT ON POLICY "storage: students can upload own submissions" ON storage.objects IS 'Students can upload files to assessment_id/student_id/ folders for enrolled courses';
 COMMENT ON POLICY "storage: instructors can view course submissions" ON storage.objects IS 'Instructors can view submission files from their courses';
+
+-- Reset role after storage changes
+RESET ROLE;
