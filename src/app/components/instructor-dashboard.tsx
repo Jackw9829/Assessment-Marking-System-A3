@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { supabaseAnonKey, supabaseFunctionsBase } from '@/lib/supabase-config';
+import { getCourses, uploadMaterial, getCourseMaterials } from '@/lib/supabase-helpers';
 
 interface InstructorDashboardProps {
   accessToken: string;
@@ -56,36 +56,19 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const fetchData = async () => {
     try {
       // Fetch courses
-      const coursesRes = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/courses`,
-        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
-      );
-      const coursesData = await coursesRes.json();
+      const coursesData = await getCourses();
       setCourses(Array.isArray(coursesData) ? coursesData : []);
 
-      // Fetch materials
-      const materialsRes = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/materials`,
-        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
-      );
-      const materialsData = await materialsRes.json();
-      setMaterials(Array.isArray(materialsData) ? materialsData : []);
+      // Fetch materials for all courses
+      const allMaterials = [];
+      for (const course of coursesData) {
+        const materials = await getCourseMaterials(course.id);
+        allMaterials.push(...materials);
+      }
+      setMaterials(allMaterials);
 
-      // Fetch assessments
-      const assessmentsRes = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/assessments`,
-        { headers: { 'Authorization': `Bearer ${supabaseAnonKey}` } }
-      );
-      const assessmentsData = await assessmentsRes.json();
-      setAssessments(Array.isArray(assessmentsData) ? assessmentsData : []);
-
-      // Fetch submissions
-      const submissionsRes = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/submissions`,
-        { headers: { 'Authorization': `Bearer ${accessToken}` } }
-      );
-      const submissionsData = await submissionsRes.json();
-      setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
+      setAssessments([]);
+      setSubmissions([]);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
