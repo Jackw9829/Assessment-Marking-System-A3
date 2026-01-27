@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { getCourses, uploadMaterial, getCourseMaterials } from '@/lib/supabase-helpers';
+import { getCourses, uploadMaterial, getCourseMaterials, createCourse, downloadMaterial } from '@/lib/supabase-helpers';
 
 interface InstructorDashboardProps {
   accessToken: string;
@@ -84,23 +84,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', materialFile);
-      formData.append('title', materialTitle);
-      formData.append('description', materialDesc);
-      formData.append('courseId', materialCourse);
-
-      const response = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/materials/upload`,
-        {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to upload');
-
+      await uploadMaterial(materialCourse, materialFile, materialTitle, materialDesc);
       toast.success('Material uploaded successfully!');
       setMaterialTitle('');
       setMaterialDesc('');
@@ -124,33 +108,14 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     setIsCreating(true);
 
     try {
-      const response = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/assessments`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            title: assessmentTitle,
-            description: assessmentDesc,
-            courseId: assessmentCourse,
-            dueDate: assessmentDue,
-            totalMarks: parseInt(assessmentMarks),
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to create assessment');
-
-      toast.success('Assessment created successfully!');
+      // TODO: Create assessments table and helper function
+      // For now, this is a placeholder
+      toast.info('Assessment feature coming soon. Create assessments table in Supabase first.');
       setAssessmentTitle('');
       setAssessmentDesc('');
       setAssessmentCourse('');
       setAssessmentDue('');
       setAssessmentMarks('100');
-      fetchData();
     } catch (error: any) {
       console.error('Create error:', error);
       toast.error(error.message || 'Failed to create assessment');
@@ -168,32 +133,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     setIsCreatingCourse(true);
 
     try {
-      console.log('Creating course with data:', { name: courseName, description: courseDesc });
-      console.log('Using access token:', accessToken ? 'Token present' : 'No token');
-      console.log('User profile:', userProfile);
-
-      const response = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/courses`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            name: courseName,
-            description: courseDesc,
-          }),
-        }
-      );
-
-      const responseData = await response.json();
-      console.log('Response:', response.status, responseData);
-
-      if (!response.ok) {
-        throw new Error(responseData.error || `Failed to create course (${response.status})`);
-      }
-
+      await createCourse(courseName, courseName, courseDesc, userProfile.id);
       toast.success('Course created successfully!');
       setCourseName('');
       setCourseDesc('');
@@ -215,32 +155,12 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     setIsGrading(true);
 
     try {
-      const assessment = assessments.find(a => a.id === selectedSubmission.assessmentId);
-
-      const response = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/grades`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            submissionId: selectedSubmission.id,
-            grade: parseInt(gradeScore),
-            totalMarks: assessment?.totalMarks || 100,
-            feedback: gradeFeedback,
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to grade submission');
-
-      toast.success('Submission graded successfully!');
+      // TODO: Create submissions and grades tables with helper functions
+      // For now, this is a placeholder
+      toast.info('Grading feature coming soon. Create submissions/grades tables in Supabase first.');
       setSelectedSubmission(null);
       setGradeScore('');
       setGradeFeedback('');
-      fetchData();
     } catch (error: any) {
       console.error('Grading error:', error);
       toast.error(error.message || 'Failed to grade submission');
@@ -251,16 +171,9 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
   const handleDownloadSubmission = async (submissionId: string) => {
     try {
-      const response = await fetch(
-        `${supabaseFunctionsBase}/make-server-f64b0eb2/submissions/${submissionId}/download`,
-        { headers: { 'Authorization': `Bearer ${accessToken}` } }
-      );
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-
-      window.open(data.url, '_blank');
-      toast.success(`Downloading ${data.fileName}`);
+      // TODO: Create submissions table with file storage
+      // For now, this is a placeholder
+      toast.info('Submission download feature coming soon. Create submissions table in Supabase first.');
     } catch (error: any) {
       console.error('Download error:', error);
       toast.error(error.message || 'Failed to download');
