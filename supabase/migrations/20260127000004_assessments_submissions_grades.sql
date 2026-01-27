@@ -1,265 +1,431 @@
 -- =============================================
--- Assessments, Submissions, Grades
--- Run after 20260127000001/02/03
+-- Assessment & Marking System - Additional Tables
+-- Migration: 20260127000004
 -- =============================================
 
 -- =============================================
--- TABLES
+-- 1. ENUMS
 -- =============================================
 
-create table if not exists public.assessments (
-  id uuid default gen_random_uuid() primary key,
-  course_id uuid references public.courses(id) on delete cascade not null,
-  title text not null,
-  description text,
-  due_date timestamp with time zone,
-  total_marks integer not null default 100 check (total_marks > 0),
-  created_by uuid references public.profiles(id) on delete set null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+CREATE TYPE submission_status AS ENUM ('submitted', 'graded');
+
+-- =============================================
+-- 2. ASSESSMENTS TABLE
+-- =============================================
+
+CREATE TABLE assessments (
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+	title TEXT NOT NULL,
+	description TEXT,
+	created_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+	due_date TIMESTAMPTZ NOT NULL,
+	total_marks INTEGER NOT NULL DEFAULT 100,
+	created_at TIMESTAMPTZ DEFAULT NOW(),
+	updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+	CONSTRAINT total_marks_positive CHECK (total_marks > 0)
 );
 
-create table if not exists public.submissions (
-  id uuid default gen_random_uuid() primary key,
-  assessment_id uuid references public.assessments(id) on delete cascade not null,
-  student_id uuid references public.profiles(id) on delete cascade not null,
-  file_name text not null,
-  file_path text not null,
-  file_type text,
-  file_size bigint,
-  status text default 'submitted',
-  submitted_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique (assessment_id, student_id)
+-- Index for faster course lookups
+CREATE INDEX idx_assessments_course_id ON assessments(course_id);
+CREATE INDEX idx_assessments_created_by ON assessments(created_by);
+CREATE INDEX idx_assessments_due_date ON assessments(due_date);
+
+-- =============================================
+-- 3. SUBMISSIONS TABLE
+-- =============================================
+
+CREATE TABLE submissions (
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	assessment_id UUID NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
+	student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+	file_path TEXT NOT NULL,
+	file_name TEXT NOT NULL,
+	file_size BIGINT NOT NULL,
+	file_type TEXT NOT NULL,
+	submitted_at TIMESTAMPTZ DEFAULT NOW(),
+	status submission_status DEFAULT 'submitted',
+    
+	-- One submission per student per assessment
+	UNIQUE(assessment_id, student_id)
 );
 
-create table if not exists public.grades (
-  id uuid default gen_random_uuid() primary key,
-  submission_id uuid references public.submissions(id) on delete cascade not null,
-  graded_by uuid references public.profiles(id) on delete set null,
-  score integer not null check (score >= 0),
-  total_marks integer not null check (total_marks > 0),
-  feedback text,
-  graded_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique (submission_id)
+-- Indexes for faster queries
+CREATE INDEX idx_submissions_assessment_id ON submissions(assessment_id);
+CREATE INDEX idx_submissions_student_id ON submissions(student_id);
+CREATE INDEX idx_submissions_status ON submissions(status);
+
+-- =============================================
+-- 4. GRADES TABLE
+-- =============================================
+
+CREATE TABLE grades (
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	submission_id UUID NOT NULL REFERENCES submissions(id) ON DELETE CASCADE UNIQUE,
+	graded_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+	score INTEGER NOT NULL,
+	total_marks INTEGER NOT NULL,
+	feedback TEXT,
+	graded_at TIMESTAMPTZ DEFAULT NOW(),
+	verified BOOLEAN DEFAULT FALSE,
+	verified_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+	verified_at TIMESTAMPTZ,
+    
+	CONSTRAINT score_valid CHECK (score >= 0 AND score <= total_marks),
+	CONSTRAINT total_marks_positive CHECK (total_marks > 0)
 );
 
--- =============================================
--- INDEXES
--- =============================================
-create index if not exists idx_assessments_course on public.assessments(course_id);
-create index if not exists idx_assessments_due_date on public.assessments(due_date);
-create index if not exists idx_submissions_assessment on public.submissions(assessment_id);
-create index if not exists idx_submissions_student on public.submissions(student_id);
-create index if not exists idx_grades_submission on public.grades(submission_id);
+-- Indexes for faster queries
+CREATE INDEX idx_grades_submission_id ON grades(submission_id);
+CREATE INDEX idx_grades_graded_by ON grades(graded_by);
+CREATE INDEX idx_grades_verified ON grades(verified);
 
 -- =============================================
--- TRIGGERS FOR UPDATED_AT
--- =============================================
-create trigger assessments_updated_at before update on public.assessments
-  for each row execute function public.handle_updated_at();
-
-create trigger submissions_updated_at before update on public.submissions
-  for each row execute function public.handle_updated_at();
-
-create trigger grades_updated_at before update on public.grades
-  for each row execute function public.handle_updated_at();
-
--- =============================================
--- ENABLE RLS
--- =============================================
-alter table public.assessments enable row level security;
-alter table public.submissions enable row level security;
-alter table public.grades enable row level security;
-
--- =============================================
--- ASSESSMENTS POLICIES
+-- 5. TRIGGERS FOR UPDATED_AT
 -- =============================================
 
--- Authenticated users can view assessments if they are enrolled (students), teach the course (instructors), or are admins
-create policy "assessments: view by role" on public.assessments for select
-using (
-  auth.uid() is not null and (
-    is_admin()
-    or exists (
-      select 1 from public.courses c
-      where c.id = assessments.course_id
-      and c.instructor_id = auth.uid()
-    )
-    or exists (
-      select 1 from public.course_enrollments ce
-      where ce.course_id = assessments.course_id
-      and ce.student_id = auth.uid()
-    )
-  )
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+	NEW.updated_at = NOW();
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER assessments_updated_at
+	BEFORE UPDATE ON assessments
+	FOR EACH ROW
+	EXECUTE FUNCTION update_updated_at();
+
+-- =============================================
+-- 6. TRIGGER TO UPDATE SUBMISSION STATUS
+-- =============================================
+
+CREATE OR REPLACE FUNCTION update_submission_status()
+RETURNS TRIGGER AS $$
+BEGIN
+	-- When a grade is created, update submission status to 'graded'
+	UPDATE submissions
+	SET status = 'graded'
+	WHERE id = NEW.submission_id;
+    
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER grade_updates_submission
+	AFTER INSERT ON grades
+	FOR EACH ROW
+	EXECUTE FUNCTION update_submission_status();
+
+-- =============================================
+-- 7. COMMENTS FOR DOCUMENTATION
+-- =============================================
+
+COMMENT ON TABLE assessments IS 'Stores assignments and exams created by instructors';
+COMMENT ON TABLE submissions IS 'Stores student submissions for assessments';
+COMMENT ON TABLE grades IS 'Stores instructor grades and feedback for submissions';
+COMMENT ON COLUMN grades.verified IS 'Admin verification flag for grade accuracy';
+
+-- =============================================
+-- RLS Policies for Assessments, Submissions, and Grades
+-- Migration: 20260127000005
+-- =============================================
+
+-- =============================================
+-- 1. ENABLE RLS
+-- =============================================
+
+ALTER TABLE assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
+
+-- =============================================
+-- 2. ASSESSMENTS POLICIES
+-- =============================================
+
+-- Admins can do everything
+CREATE POLICY "assessments: admins full access"
+	ON assessments FOR ALL
+	USING (is_admin());
+
+-- Instructors can view all assessments
+CREATE POLICY "assessments: instructors can view all"
+	ON assessments FOR SELECT
+	USING (is_instructor());
+
+-- Instructors can create assessments for their courses
+CREATE POLICY "assessments: instructors can create for own courses"
+	ON assessments FOR INSERT
+	WITH CHECK (
+		is_instructor() AND
+		EXISTS (
+			SELECT 1 FROM courses
+			WHERE courses.id = assessments.course_id
+			AND courses.instructor_id = auth.uid()
+		)
+	);
+
+-- Instructors can update their own assessments
+CREATE POLICY "assessments: instructors can update own"
+	ON assessments FOR UPDATE
+	USING (is_instructor() AND created_by = auth.uid())
+	WITH CHECK (is_instructor() AND created_by = auth.uid());
+
+-- Instructors can delete their own assessments
+CREATE POLICY "assessments: instructors can delete own"
+	ON assessments FOR DELETE
+	USING (is_instructor() AND created_by = auth.uid());
+
+-- Students can view assessments for enrolled courses
+CREATE POLICY "assessments: students can view enrolled"
+	ON assessments FOR SELECT
+	USING (
+		is_student() AND
+		EXISTS (
+			SELECT 1 FROM course_enrollments
+			WHERE course_enrollments.course_id = assessments.course_id
+			AND course_enrollments.student_id = auth.uid()
+		)
+	);
+
+-- =============================================
+-- 3. SUBMISSIONS POLICIES
+-- =============================================
+
+-- Admins can do everything
+CREATE POLICY "submissions: admins full access"
+	ON submissions FOR ALL
+	USING (is_admin());
+
+-- Instructors can view submissions for their course assessments
+CREATE POLICY "submissions: instructors can view own course submissions"
+	ON submissions FOR SELECT
+	USING (
+		is_instructor() AND
+		EXISTS (
+			SELECT 1 FROM assessments
+			JOIN courses ON assessments.course_id = courses.id
+			WHERE assessments.id = submissions.assessment_id
+			AND courses.instructor_id = auth.uid()
+		)
+	);
+
+-- Students can view their own submissions
+CREATE POLICY "submissions: students can view own"
+	ON submissions FOR SELECT
+	USING (is_student() AND student_id = auth.uid());
+
+-- Students can create submissions for enrolled course assessments
+CREATE POLICY "submissions: students can submit to enrolled courses"
+	ON submissions FOR INSERT
+	WITH CHECK (
+		is_student() AND
+		student_id = auth.uid() AND
+		EXISTS (
+			SELECT 1 FROM assessments
+			JOIN course_enrollments ON assessments.course_id = course_enrollments.course_id
+			WHERE assessments.id = submissions.assessment_id
+			AND course_enrollments.student_id = auth.uid()
+		)
+	);
+
+-- Students can update their own ungraded submissions
+CREATE POLICY "submissions: students can update own ungraded"
+	ON submissions FOR UPDATE
+	USING (
+		is_student() AND
+		student_id = auth.uid() AND
+		status = 'submitted'
+	)
+	WITH CHECK (
+		is_student() AND
+		student_id = auth.uid() AND
+		status = 'submitted'
+	);
+
+-- Students can delete their own ungraded submissions
+CREATE POLICY "submissions: students can delete own ungraded"
+	ON submissions FOR DELETE
+	USING (
+		is_student() AND
+		student_id = auth.uid() AND
+		status = 'submitted'
+	);
+
+-- =============================================
+-- 4. GRADES POLICIES
+-- =============================================
+
+-- Admins can do everything
+CREATE POLICY "grades: admins full access"
+	ON grades FOR ALL
+	USING (is_admin());
+
+-- Instructors can view grades for their course submissions
+CREATE POLICY "grades: instructors can view own course grades"
+	ON grades FOR SELECT
+	USING (
+		is_instructor() AND
+		EXISTS (
+			SELECT 1 FROM submissions
+			JOIN assessments ON submissions.assessment_id = assessments.id
+			JOIN courses ON assessments.course_id = courses.id
+			WHERE submissions.id = grades.submission_id
+			AND courses.instructor_id = auth.uid()
+		)
+	);
+
+-- Instructors can create grades for their course submissions
+CREATE POLICY "grades: instructors can grade own courses"
+	ON grades FOR INSERT
+	WITH CHECK (
+		is_instructor() AND
+		graded_by = auth.uid() AND
+		EXISTS (
+			SELECT 1 FROM submissions
+			JOIN assessments ON submissions.assessment_id = assessments.id
+			JOIN courses ON assessments.course_id = courses.id
+			WHERE submissions.id = grades.submission_id
+			AND courses.instructor_id = auth.uid()
+		)
+	);
+
+-- Instructors can update their own unverified grades
+CREATE POLICY "grades: instructors can update own unverified"
+	ON grades FOR UPDATE
+	USING (
+		is_instructor() AND
+		graded_by = auth.uid() AND
+		verified = FALSE
+	)
+	WITH CHECK (
+		is_instructor() AND
+		graded_by = auth.uid() AND
+		verified = FALSE
+	);
+
+-- Students can view their own grades
+CREATE POLICY "grades: students can view own"
+	ON grades FOR SELECT
+	USING (
+		is_student() AND
+		EXISTS (
+			SELECT 1 FROM submissions
+			WHERE submissions.id = grades.submission_id
+			AND submissions.student_id = auth.uid()
+		)
+	);
+
+-- =============================================
+-- 5. COMMENTS FOR DOCUMENTATION
+-- =============================================
+
+COMMENT ON POLICY "assessments: instructors can create for own courses" ON assessments IS 'Instructors can only create assessments for courses they teach';
+COMMENT ON POLICY "submissions: students can submit to enrolled courses" ON submissions IS 'Students can only submit to assessments in courses they are enrolled in';
+COMMENT ON POLICY "grades: instructors can grade own courses" ON grades IS 'Instructors can only grade submissions from their own courses';
+
+-- =============================================
+-- Storage Policies for Submissions
+-- Migration: 20260127000006
+-- =============================================
+
+-- =============================================
+-- 1. CREATE SUBMISSIONS STORAGE BUCKET
+-- =============================================
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('submissions', 'submissions', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- =============================================
+-- 2. STORAGE POLICIES FOR SUBMISSIONS
+-- =============================================
+
+-- Students can upload submissions to their own folder
+CREATE POLICY "storage: students can upload own submissions"
+ON storage.objects FOR INSERT
+WITH CHECK (
+	bucket_id = 'submissions' AND
+	is_student() AND
+	-- Path format: assessment_id/student_id/filename
+	(storage.foldername(name))[1] IN (
+		SELECT assessments.id::text
+		FROM assessments
+		JOIN course_enrollments ON assessments.course_id = course_enrollments.course_id
+		WHERE course_enrollments.student_id = auth.uid()
+	) AND
+	(storage.foldername(name))[2] = auth.uid()::text
 );
 
--- Instructors can create assessments for their courses; admins can create any
-create policy "assessments: instructors/admins can insert" on public.assessments for insert
-with check (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.courses c
-      where c.id = assessments.course_id
-      and c.instructor_id = auth.uid()
-    )
-  )
+-- Students can view their own submissions
+CREATE POLICY "storage: students can view own submissions"
+ON storage.objects FOR SELECT
+USING (
+	bucket_id = 'submissions' AND
+	is_student() AND
+	(storage.foldername(name))[2] = auth.uid()::text
 );
 
--- Instructors can update/delete assessments for their courses; admins can update/delete any
-create policy "assessments: instructors/admins can update" on public.assessments for update
-using (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.courses c
-      where c.id = assessments.course_id
-      and c.instructor_id = auth.uid()
-    )
-  )
+-- Students can update their own ungraded submissions
+CREATE POLICY "storage: students can update own ungraded submissions"
+ON storage.objects FOR UPDATE
+USING (
+	bucket_id = 'submissions' AND
+	is_student() AND
+	(storage.foldername(name))[2] = auth.uid()::text AND
+	EXISTS (
+		SELECT 1 FROM submissions
+		WHERE submissions.file_path = storage.objects.name
+		AND submissions.student_id = auth.uid()
+		AND submissions.status = 'submitted'
+	)
 )
-with check (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.courses c
-      where c.id = assessments.course_id
-      and c.instructor_id = auth.uid()
-    )
-  )
+WITH CHECK (
+	bucket_id = 'submissions' AND
+	is_student() AND
+	(storage.foldername(name))[2] = auth.uid()::text
 );
 
-create policy "assessments: instructors/admins can delete" on public.assessments for delete
-using (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.courses c
-      where c.id = assessments.course_id
-      and c.instructor_id = auth.uid()
-    )
-  )
+-- Students can delete their own ungraded submissions
+CREATE POLICY "storage: students can delete own ungraded submissions"
+ON storage.objects FOR DELETE
+USING (
+	bucket_id = 'submissions' AND
+	is_student() AND
+	(storage.foldername(name))[2] = auth.uid()::text AND
+	EXISTS (
+		SELECT 1 FROM submissions
+		WHERE submissions.file_path = storage.objects.name
+		AND submissions.student_id = auth.uid()
+		AND submissions.status = 'submitted'
+	)
 );
+
+-- Instructors can view submissions for their courses
+CREATE POLICY "storage: instructors can view course submissions"
+ON storage.objects FOR SELECT
+USING (
+	bucket_id = 'submissions' AND
+	is_instructor() AND
+	(storage.foldername(name))[1] IN (
+		SELECT assessments.id::text
+		FROM assessments
+		JOIN courses ON assessments.course_id = courses.id
+		WHERE courses.instructor_id = auth.uid()
+	)
+);
+
+-- Admins can do everything with submissions
+CREATE POLICY "storage: admins full access submissions"
+ON storage.objects FOR ALL
+USING (bucket_id = 'submissions' AND is_admin())
+WITH CHECK (bucket_id = 'submissions' AND is_admin());
 
 -- =============================================
--- SUBMISSIONS POLICIES
+-- 3. COMMENTS FOR DOCUMENTATION
 -- =============================================
 
--- Students can view their own submissions; instructors/admins can view submissions for their courses
-create policy "submissions: view by role" on public.submissions for select
-using (
-  is_admin()
-  or (is_student() and student_id = auth.uid())
-  or (
-    is_instructor() and exists (
-      select 1 from public.assessments a
-      join public.courses c on c.id = a.course_id
-      where a.id = submissions.assessment_id
-      and c.instructor_id = auth.uid()
-    )
-  )
-);
-
--- Students can submit to assessments for courses they are enrolled in
-create policy "submissions: students can insert" on public.submissions for insert
-with check (
-  is_student()
-  and student_id = auth.uid()
-  and exists (
-    select 1 from public.assessments a
-    join public.course_enrollments ce on ce.course_id = a.course_id
-    where a.id = submissions.assessment_id
-    and ce.student_id = auth.uid()
-  )
-);
-
--- (Optional) allow students to update their own submissions; comment out to forbid edits
-create policy "submissions: students can update own" on public.submissions for update
-using (is_student() and student_id = auth.uid())
-with check (is_student() and student_id = auth.uid());
-
--- Instructors can delete submissions for their courses; admins can delete any
-create policy "submissions: instructors/admins can delete" on public.submissions for delete
-using (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.assessments a
-      join public.courses c on c.id = a.course_id
-      where a.id = submissions.assessment_id
-      and c.instructor_id = auth.uid()
-    )
-  )
-);
-
--- =============================================
--- GRADES POLICIES
--- =============================================
-
--- Students can view grades for their own submissions; instructors/admins can view grades for their courses
-create policy "grades: view by role" on public.grades for select
-using (
-  is_admin()
-  or exists (
-    select 1 from public.submissions s
-    where s.id = grades.submission_id
-    and s.student_id = auth.uid()
-  )
-  or (
-    is_instructor() and exists (
-      select 1 from public.submissions s
-      join public.assessments a on a.id = s.assessment_id
-      join public.courses c on c.id = a.course_id
-      where s.id = grades.submission_id
-      and c.instructor_id = auth.uid()
-    )
-  )
-);
-
--- Instructors can insert/update grades for submissions in their courses; admins can insert/update any
-create policy "grades: instructors/admins can insert" on public.grades for insert
-with check (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.submissions s
-      join public.assessments a on a.id = s.assessment_id
-      join public.courses c on c.id = a.course_id
-      where s.id = grades.submission_id
-      and c.instructor_id = auth.uid()
-    )
-  )
-);
-
-create policy "grades: instructors/admins can update" on public.grades for update
-using (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.submissions s
-      join public.assessments a on a.id = s.assessment_id
-      join public.courses c on c.id = a.course_id
-      where s.id = grades.submission_id
-      and c.instructor_id = auth.uid()
-    )
-  )
-)
-with check (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.submissions s
-      join public.assessments a on a.id = s.assessment_id
-      join public.courses c on c.id = a.course_id
-      where s.id = grades.submission_id
-      and c.instructor_id = auth.uid()
-    )
-  )
-);
-
-create policy "grades: instructors/admins can delete" on public.grades for delete
-using (
-  is_admin() or (
-    is_instructor() and exists (
-      select 1 from public.submissions s
-      join public.assessments a on a.id = s.assessment_id
-      join public.courses c on c.id = a.course_id
-      where s.id = grades.submission_id
-      and c.instructor_id = auth.uid()
-    )
-  )
-);
+COMMENT ON POLICY "storage: students can upload own submissions" ON storage.objects IS 'Students can upload files to assessment_id/student_id/ folders for enrolled courses';
+COMMENT ON POLICY "storage: instructors can view course submissions" ON storage.objects IS 'Instructors can view submission files from their courses';
