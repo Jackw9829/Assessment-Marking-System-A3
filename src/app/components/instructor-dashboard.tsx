@@ -299,17 +299,17 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {courses.filter(c => c.instructorId === userProfile.id).length === 0 ? (
+                  {courses.filter(c => c.instructor_id === userProfile.id || c.created_by === userProfile.id).length === 0 ? (
                     <p className="text-sm text-gray-500">No courses created yet. Create your first course above!</p>
                   ) : (
                     courses
-                      .filter(c => c.instructorId === userProfile.id)
+                      .filter(c => c.instructor_id === userProfile.id || c.created_by === userProfile.id)
                       .map((course) => (
                         <div key={course.id} className="p-4 border rounded-lg">
-                          <h3 className="font-medium">{course.name}</h3>
+                          <h3 className="font-medium">{course.title} ({course.code})</h3>
                           <p className="text-sm text-gray-600 mt-1">{course.description}</p>
                           <p className="text-xs text-gray-500 mt-2">
-                            Created {new Date(course.createdAt).toLocaleDateString()}
+                            Created {new Date(course.created_at).toLocaleDateString()}
                           </p>
                         </div>
                       ))
@@ -382,11 +382,11 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {materials.filter(m => m.uploadedBy === userProfile.id).length === 0 ? (
+                  {materials.filter(m => m.uploader_id === userProfile.id).length === 0 ? (
                     <p className="text-sm text-gray-500">No materials uploaded yet</p>
                   ) : (
                     materials
-                      .filter(m => m.uploadedBy === userProfile.id)
+                      .filter(m => m.uploader_id === userProfile.id)
                       .map((material) => (
                         <div key={material.id} className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="flex items-center gap-3">
@@ -395,7 +395,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                               <h3 className="font-medium">{material.title}</h3>
                               <p className="text-sm text-gray-600">{material.description}</p>
                               <p className="text-xs text-gray-500 mt-1">
-                                {new Date(material.uploadedAt).toLocaleDateString()}
+                                {new Date(material.created_at).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
@@ -480,20 +480,20 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {assessments.filter(a => a.instructorId === userProfile.id).length === 0 ? (
+                  {assessments.filter(a => a.created_by === userProfile.id).length === 0 ? (
                     <p className="text-sm text-gray-500">No assessments created yet</p>
                   ) : (
                     assessments
-                      .filter(a => a.instructorId === userProfile.id)
+                      .filter(a => a.created_by === userProfile.id)
                       .map((assessment) => (
                         <div key={assessment.id} className="p-4 border rounded-lg">
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-medium">{assessment.title}</h3>
-                            <Badge>{assessment.totalMarks} marks</Badge>
+                            <Badge>{assessment.total_marks} marks</Badge>
                           </div>
                           <p className="text-sm text-gray-600 mb-2">{assessment.description}</p>
                           <p className="text-xs text-gray-500">
-                            Due: {new Date(assessment.dueDate).toLocaleString()}
+                            Due: {new Date(assessment.due_date).toLocaleString()}
                           </p>
                         </div>
                       ))

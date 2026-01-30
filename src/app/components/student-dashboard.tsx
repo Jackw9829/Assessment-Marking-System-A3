@@ -217,7 +217,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                             <h3 className="font-medium">{material.title}</h3>
                             <p className="text-sm text-gray-600">{material.description}</p>
                             <p className="text-xs text-gray-500 mt-1">
-                              Uploaded by {material.uploadedByName} • {new Date(material.uploadedAt).toLocaleDateString()}
+                              {new Date(material.created_at).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -254,7 +254,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                     <option value="">Choose an assessment...</option>
                     {assessments.map((assessment) => (
                       <option key={assessment.id} value={assessment.id}>
-                        {assessment.title} (Due: {new Date(assessment.dueDate).toLocaleDateString()})
+                        {assessment.title} (Due: {new Date(assessment.due_date).toLocaleDateString()})
                       </option>
                     ))}
                   </select>
@@ -295,12 +295,11 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                       <div key={assessment.id} className="p-4 border rounded-lg">
                         <div className="flex justify-between items-start mb-2">
                           <h3 className="font-medium">{assessment.title}</h3>
-                          <Badge>{assessment.totalMarks} marks</Badge>
+                          <Badge>{assessment.total_marks} marks</Badge>
                         </div>
                         <p className="text-sm text-gray-600 mb-2">{assessment.description}</p>
                         <div className="flex gap-4 text-xs text-gray-500">
-                          <span>Instructor: {assessment.instructorName}</span>
-                          <span>Due: {new Date(assessment.dueDate).toLocaleDateString()}</span>
+                          <span>Due: {new Date(assessment.due_date).toLocaleDateString()}</span>
                         </div>
                       </div>
                     ))
