@@ -103,14 +103,18 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
     try {
       await verifyGrade(gradeId);
 
-      // Refresh data first
-      await fetchData();
+      toast.success('Grade verified and released to student!');
 
-      // Then close dialog and reset state
-      setVerifyDialogOpen(false);
+      // Reset state first
       setSelectedGrade(null);
 
-      toast.success('Grade verified and released to student!');
+      // Close dialog
+      setVerifyDialogOpen(false);
+
+      // Refresh data after UI has updated
+      setTimeout(() => {
+        fetchData();
+      }, 100);
     } catch (error: any) {
       console.error('Verify grade error:', error);
       toast.error(error.message || 'Failed to verify grade');
@@ -248,47 +252,16 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
                           )}
                           <Progress value={percentage} className="mt-2" />
                           <div className="flex gap-2">
-                            <Dialog open={verifyDialogOpen && selectedGrade?.id === grade.id} onOpenChange={(open) => {
-                              setVerifyDialogOpen(open);
-                              if (!open) {
-                                setSelectedGrade(null);
-                              }
-                            }}>
-                              <DialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedGrade(grade);
-                                    setVerifyDialogOpen(true);
-                                  }}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Verify & Release
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Verify and Release Grade</DialogTitle>
-                                  <DialogDescription>
-                                    Are you sure you want to verify and officially release this grade to the student?
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-2 py-4">
-                                  <p className="text-sm"><strong>Student:</strong> {grade.submission?.student?.full_name}</p>
-                                  <p className="text-sm"><strong>Assessment:</strong> {grade.submission?.assessment?.title}</p>
-                                  <p className="text-sm"><strong>Grade:</strong> {grade.score}/{grade.total_marks} ({percentage}%)</p>
-                                  {grade.feedback && <p className="text-sm"><strong>Feedback:</strong> {grade.feedback}</p>}
-                                </div>
-                                <DialogFooter>
-                                  <Button
-                                    onClick={() => handleVerifyGrade(grade.id)}
-                                    disabled={isVerifying}
-                                  >
-                                    {isVerifying ? 'Verifying...' : 'Confirm Verification'}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedGrade(grade);
+                                setVerifyDialogOpen(true);
+                              }}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Verify & Release
+                            </Button>
                           </div>
                         </div>
                       );
@@ -297,6 +270,41 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
                 </div>
               </CardContent>
             </Card>
+
+            {/* Verification Dialog - Outside map for proper control */}
+            <Dialog open={verifyDialogOpen} onOpenChange={(open) => {
+              if (!open) {
+                setVerifyDialogOpen(false);
+                setTimeout(() => {
+                  setSelectedGrade(null);
+                }, 0);
+              }
+            }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Verify and Release Grade</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to verify and officially release this grade to the student?
+                  </DialogDescription>
+                </DialogHeader>
+                {selectedGrade && (
+                  <div className="space-y-2 py-4">
+                    <p className="text-sm"><strong>Student:</strong> {selectedGrade.submission?.student?.full_name}</p>
+                    <p className="text-sm"><strong>Assessment:</strong> {selectedGrade.submission?.assessment?.title}</p>
+                    <p className="text-sm"><strong>Grade:</strong> {selectedGrade.score}/{selectedGrade.total_marks} ({Math.round((selectedGrade.score / selectedGrade.total_marks) * 100)}%)</p>
+                    {selectedGrade.feedback && <p className="text-sm"><strong>Feedback:</strong> {selectedGrade.feedback}</p>}
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button
+                    onClick={() => handleVerifyGrade(selectedGrade?.id)}
+                    disabled={isVerifying}
+                  >
+                    {isVerifying ? 'Verifying...' : 'Confirm Verification'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <Card>
               <CardHeader>

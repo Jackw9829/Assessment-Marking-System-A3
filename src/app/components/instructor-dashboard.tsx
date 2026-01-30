@@ -180,16 +180,20 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
         gradeFeedback || null
       );
 
-      // Refresh data first
-      await fetchData();
+      toast.success('Submission graded successfully!');
 
-      // Then close dialog and reset state
-      setGradeDialogOpen(false);
-      setSelectedSubmission(null);
+      // Reset form state first
       setGradeScore('');
       setGradeFeedback('');
+      setSelectedSubmission(null);
 
-      toast.success('Submission graded successfully!');
+      // Close dialog
+      setGradeDialogOpen(false);
+
+      // Refresh data after UI has updated
+      setTimeout(() => {
+        fetchData();
+      }, 100);
     } catch (error: any) {
       console.error('Grading error:', error);
       toast.error(error.message || 'Failed to grade submission');
@@ -556,63 +560,16 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                             <Download className="h-4 w-4 mr-2" />
                             Download
                           </Button>
-                          <Dialog open={gradeDialogOpen && selectedSubmission?.id === submission.id} onOpenChange={(open) => {
-                            setGradeDialogOpen(open);
-                            if (!open) {
-                              setSelectedSubmission(null);
-                              setGradeScore('');
-                              setGradeFeedback('');
-                            }
-                          }}>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedSubmission(submission);
-                                  setGradeDialogOpen(true);
-                                }}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Grade
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Grade Submission</DialogTitle>
-                                <DialogDescription>
-                                  Provide score and feedback for {submission.student?.full_name || 'student'}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <Label>Score (out of {submission.assessment?.total_marks || 100})</Label>
-                                  <Input
-                                    type="number"
-                                    placeholder="Enter marks"
-                                    value={gradeScore}
-                                    onChange={(e) => setGradeScore(e.target.value)}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Feedback</Label>
-                                  <Textarea
-                                    placeholder="Provide detailed feedback..."
-                                    value={gradeFeedback}
-                                    onChange={(e) => setGradeFeedback(e.target.value)}
-                                    rows={5}
-                                  />
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button
-                                  onClick={handleGradeSubmission}
-                                  disabled={isGrading}
-                                >
-                                  {isGrading ? 'Submitting...' : 'Submit Grade'}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSubmission(submission);
+                              setGradeDialogOpen(true);
+                            }}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Grade
+                          </Button>
                         </div>
                       </div>
                     ))
@@ -620,6 +577,55 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                 </div>
               </CardContent>
             </Card>
+
+            {/* Grade Dialog - Outside map for proper control */}
+            <Dialog open={gradeDialogOpen} onOpenChange={(open) => {
+              if (!open) {
+                setGradeDialogOpen(false);
+                setTimeout(() => {
+                  setSelectedSubmission(null);
+                  setGradeScore('');
+                  setGradeFeedback('');
+                }, 0);
+              }
+            }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Grade Submission</DialogTitle>
+                  <DialogDescription>
+                    Provide score and feedback for {selectedSubmission?.student?.full_name || 'student'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Score (out of {selectedSubmission?.assessment?.total_marks || 100})</Label>
+                    <Input
+                      type="number"
+                      placeholder="Enter marks"
+                      value={gradeScore}
+                      onChange={(e) => setGradeScore(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Feedback</Label>
+                    <Textarea
+                      placeholder="Provide detailed feedback..."
+                      value={gradeFeedback}
+                      onChange={(e) => setGradeFeedback(e.target.value)}
+                      rows={5}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleGradeSubmission}
+                    disabled={isGrading}
+                  >
+                    {isGrading ? 'Submitting...' : 'Submit Grade'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Graded Submissions Section */}
             <Card>
