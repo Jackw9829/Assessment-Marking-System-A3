@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { getCourses, uploadMaterial, getCourseMaterials, createCourse, downloadMaterial, getAssessments, createAssessment } from '@/lib/supabase-helpers';
+import { getCourses, uploadMaterial, getCourseMaterials, createCourse, downloadMaterial, getAssessments, createAssessment, getSubmissionsForGrading, gradeSubmission } from '@/lib/supabase-helpers';
 
 interface InstructorDashboardProps {
   accessToken: string;
@@ -71,7 +71,9 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
       const assessmentsData = await getAssessments();
       setAssessments(Array.isArray(assessmentsData) ? assessmentsData : []);
 
-      setSubmissions([]);
+      // Fetch submissions for grading
+      const submissionsData = await getSubmissionsForGrading();
+      setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -156,20 +158,26 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   };
 
   const handleGradeSubmission = async () => {
-    if (!selectedSubmission || !gradeScore || !gradeFeedback) {
-      toast.error('Please provide grade and feedback');
+    if (!selectedSubmission || !gradeScore) {
+      toast.error('Please provide a grade');
       return;
     }
 
     setIsGrading(true);
 
     try {
-      // TODO: Create submissions and grades tables with helper functions
-      // For now, this is a placeholder
-      toast.info('Grading feature coming soon. Create submissions/grades tables in Supabase first.');
+      const totalMarks = selectedSubmission.assessment?.total_marks || 100;
+      await gradeSubmission(
+        selectedSubmission.id,
+        parseInt(gradeScore),
+        totalMarks,
+        gradeFeedback || null
+      );
+      toast.success('Submission graded successfully!');
       setSelectedSubmission(null);
       setGradeScore('');
       setGradeFeedback('');
+      await fetchData();
     } catch (error: any) {
       console.error('Grading error:', error);
       toast.error(error.message || 'Failed to grade submission');
@@ -514,14 +522,15 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                   {pendingSubmissions.length === 0 ? (
                     <p className="text-sm text-gray-500">No pending submissions</p>
                   ) : (
-                    pendingSubmissions.map((submission) => (
+                    pendingSubmissions.map((submission: any) => (
                       <div key={submission.id} className="p-4 border rounded-lg">
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <h3 className="font-medium">{submission.studentName}</h3>
-                            <p className="text-sm text-gray-600">{submission.fileName}</p>
+                            <h3 className="font-medium">{submission.student?.full_name || 'Unknown Student'}</h3>
+                            <p className="text-sm text-gray-600">{submission.assessment?.title || 'Assessment'}</p>
+                            <p className="text-sm text-gray-500">{submission.file_name}</p>
                             <p className="text-xs text-gray-500">
-                              Submitted: {new Date(submission.submittedAt).toLocaleString()}
+                              Submitted: {new Date(submission.submitted_at).toLocaleString()}
                             </p>
                           </div>
                           <Badge>{submission.status}</Badge>
@@ -549,12 +558,12 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                               <DialogHeader>
                                 <DialogTitle>Grade Submission</DialogTitle>
                                 <DialogDescription>
-                                  Provide score and feedback for {submission.studentName}
+                                  Provide score and feedback for {submission.student?.full_name || 'student'}
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4">
                                 <div className="space-y-2">
-                                  <Label>Score</Label>
+                                  <Label>Score (out of {submission.assessment?.total_marks || 100})</Label>
                                   <Input
                                     type="number"
                                     placeholder="Enter marks"

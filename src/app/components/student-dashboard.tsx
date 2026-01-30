@@ -9,7 +9,7 @@ import { Download, FileText, Bell, Award, LogOut, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
-import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments } from '@/lib/supabase-helpers';
+import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions } from '@/lib/supabase-helpers';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -54,14 +54,20 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
       const allAssessments = await getAssessments();
       setAssessments(allAssessments || []);
 
-      setSubmissions([]);
+      // Fetch student's submissions
+      const studentSubmissions = await getStudentSubmissions(userProfile.id);
+      setSubmissions(studentSubmissions || []);
+
       setGrades([]);
       setNotifications([]);
 
+      const gradedCount = studentSubmissions?.filter((s: any) => s.status === 'graded').length || 0;
+      const pendingCount = studentSubmissions?.filter((s: any) => s.status === 'submitted').length || 0;
+
       setReport({
         totalAssessments: allAssessments?.length || 0,
-        gradedAssessments: 0,
-        pendingAssessments: allAssessments?.length || 0,
+        gradedAssessments: gradedCount,
+        pendingAssessments: pendingCount,
         averageGrade: 0,
       });
     } catch (error) {
@@ -80,14 +86,24 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
   };
 
   const handleSubmitAssessment = async () => {
+    if (!selectedFile || !selectedAssessment) {
+      toast.error('Please select an assessment and file');
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
+      await submitAssessment(selectedAssessment, selectedFile);
       toast.success('Assessment submitted successfully!');
       setSelectedFile(null);
       setSelectedAssessment('');
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       console.error('Submission error:', error);
       toast.error(error.message || 'Failed to submit assessment');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -320,13 +336,14 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                   {submissions.length === 0 ? (
                     <p className="text-sm text-gray-500">No submissions yet</p>
                   ) : (
-                    submissions.map((submission) => (
+                    submissions.map((submission: any) => (
                       <div key={submission.id} className="p-4 border rounded-lg">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-medium">{submission.fileName}</h3>
-                            <p className="text-sm text-gray-600">
-                              Submitted: {new Date(submission.submittedAt).toLocaleString()}
+                            <h3 className="font-medium">{submission.assessment?.title || submission.file_name}</h3>
+                            <p className="text-sm text-gray-600">{submission.file_name}</p>
+                            <p className="text-xs text-gray-500">
+                              Submitted: {new Date(submission.submitted_at).toLocaleString()}
                             </p>
                           </div>
                           <Badge variant={submission.status === 'graded' ? 'default' : 'secondary'}>

@@ -418,3 +418,136 @@ export async function createAssessment(
     if (error) throw error;
     return data;
 }
+
+// =============================================
+// SUBMISSION HELPERS
+// =============================================
+
+/**
+ * Submit an assessment (Student only)
+ */
+export async function submitAssessment(
+    assessmentId: string,
+    file: File
+) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error('Not authenticated');
+
+    // Upload file to storage
+    const filePath = `submissions/${assessmentId}/${user.id}/${Date.now()}_${file.name}`;
+    const { error: uploadError } = await supabase.storage
+        .from('course-materials')
+        .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    // Create submission record
+    const { data, error } = await supabase
+        .from('submissions')
+        .insert({
+            assessment_id: assessmentId,
+            student_id: user.id,
+            file_path: filePath,
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            status: 'submitted',
+        })
+        .select()
+        .single();
+
+    if (error) {
+        // Cleanup: delete uploaded file if database insert fails
+        await supabase.storage.from('course-materials').remove([filePath]);
+        throw error;
+    }
+
+    return data;
+}
+
+/**
+ * Get submissions for a student
+ */
+export async function getStudentSubmissions(studentId: string) {
+    const { data, error } = await supabase
+        .from('submissions')
+        .select(`
+            *,
+            assessment:assessment_id(id, title, due_date, total_marks, course_id)
+        `)
+        .eq('student_id', studentId)
+        .order('submitted_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get all submissions for grading (Instructor)
+ */
+export async function getSubmissionsForGrading() {
+    const { data, error } = await supabase
+        .from('submissions')
+        .select(`
+            *,
+            assessment:assessment_id(id, title, due_date, total_marks, course_id),
+            student:student_id(id, full_name, email)
+        `)
+        .eq('status', 'submitted')
+        .order('submitted_at', { ascending: true });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Grade a submission (Instructor only)
+ */
+export async function gradeSubmission(
+    submissionId: string,
+    score: number,
+    totalMarks: number,
+    feedback: string | null
+) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('grades')
+        .insert({
+            submission_id: submissionId,
+            graded_by: user.id,
+            score,
+            total_marks: totalMarks,
+            feedback,
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get grades for a student
+ */
+export async function getStudentGrades(studentId: string) {
+    const { data, error } = await supabase
+        .from('grades')
+        .select(`
+            *,
+            submission:submission_id(
+                id,
+                file_name,
+                submitted_at,
+                assessment:assessment_id(id, title, course_id)
+            )
+        `)
+        .eq('submission.student_id', studentId)
+        .order('graded_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
