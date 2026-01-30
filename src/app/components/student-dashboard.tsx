@@ -5,9 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
-import { Download, FileText, Bell, Award, LogOut } from 'lucide-react';
+import { Download, FileText, Bell, Award, LogOut, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
+import { Label } from './ui/label';
 import { getStudentEnrollments, getCourseMaterials } from '@/lib/supabase-helpers';
 
 interface StudentDashboardProps {
