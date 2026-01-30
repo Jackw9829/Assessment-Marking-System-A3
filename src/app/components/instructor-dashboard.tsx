@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { getCourses, uploadMaterial, getCourseMaterials, createCourse, downloadMaterial, getAssessments, createAssessment, getSubmissionsForGrading, gradeSubmission } from '@/lib/supabase-helpers';
+import { getCourses, uploadMaterial, getCourseMaterials, createCourse, downloadMaterial, getAssessments, createAssessment, getSubmissionsForGrading, gradeSubmission, getGradedSubmissionsForInstructor } from '@/lib/supabase-helpers';
 
 interface InstructorDashboardProps {
   accessToken: string;
@@ -21,6 +21,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const [materials, setMaterials] = useState<any[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [gradedSubmissions, setGradedSubmissions] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
 
   // Material upload state
@@ -74,6 +75,10 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
       // Fetch submissions for grading
       const submissionsData = await getSubmissionsForGrading();
       setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
+
+      // Fetch graded submissions
+      const gradedData = await getGradedSubmissionsForInstructor();
+      setGradedSubmissions(Array.isArray(gradedData) ? gradedData : []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -594,6 +599,56 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                         </div>
                       </div>
                     ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Graded Submissions Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Graded Submissions</CardTitle>
+                <CardDescription>View previously graded assessments</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {gradedSubmissions.length === 0 ? (
+                    <p className="text-sm text-gray-500">No graded submissions yet</p>
+                  ) : (
+                    gradedSubmissions.map((submission: any) => {
+                      const gradeInfo = Array.isArray(submission.grade) ? submission.grade[0] : submission.grade;
+                      const percentage = gradeInfo ? Math.round((gradeInfo.score / gradeInfo.total_marks) * 100) : 0;
+                      return (
+                        <div key={submission.id} className="p-4 border rounded-lg">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-medium">{submission.student?.full_name || 'Unknown Student'}</h3>
+                              <p className="text-sm text-gray-600">{submission.assessment?.title || 'Assessment'}</p>
+                              <p className="text-sm text-gray-500">{submission.file_name}</p>
+                              <p className="text-xs text-gray-500">
+                                Submitted: {new Date(submission.submitted_at).toLocaleString()}
+                              </p>
+                              {gradeInfo && (
+                                <>
+                                  <p className="text-sm font-semibold text-green-700 mt-2">
+                                    Grade: {gradeInfo.score}/{gradeInfo.total_marks} ({percentage}%)
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    Graded: {new Date(gradeInfo.graded_at).toLocaleString()}
+                                  </p>
+                                  {gradeInfo.feedback && (
+                                    <p className="text-sm text-gray-600 mt-1 italic">"{gradeInfo.feedback}"</p>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <Badge variant={percentage >= 50 ? 'default' : 'destructive'}>
+                              {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Good' : percentage >= 50 ? 'Pass' : 'Needs Improvement'}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </CardContent>

@@ -514,6 +514,7 @@ export async function gradeSubmission(
 
     if (!user) throw new Error('Not authenticated');
 
+    // Insert grade
     const { data, error } = await supabase
         .from('grades')
         .insert({
@@ -527,6 +528,17 @@ export async function gradeSubmission(
         .single();
 
     if (error) throw error;
+
+    // Update submission status to 'graded'
+    const { error: updateError } = await supabase
+        .from('submissions')
+        .update({ status: 'graded' })
+        .eq('id', submissionId);
+
+    if (updateError) {
+        console.error('Failed to update submission status:', updateError);
+    }
+
     return data;
 }
 
@@ -534,6 +546,19 @@ export async function gradeSubmission(
  * Get grades for a student
  */
 export async function getStudentGrades(studentId: string) {
+    // First get the student's submissions that are graded
+    const { data: submissions, error: subError } = await supabase
+        .from('submissions')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('status', 'graded');
+
+    if (subError) throw subError;
+    if (!submissions || submissions.length === 0) return [];
+
+    const submissionIds = submissions.map(s => s.id);
+
+    // Then get grades for those submissions
     const { data, error } = await supabase
         .from('grades')
         .select(`
@@ -542,11 +567,32 @@ export async function getStudentGrades(studentId: string) {
                 id,
                 file_name,
                 submitted_at,
-                assessment:assessment_id(id, title, course_id)
-            )
+                student_id,
+                assessment:assessment_id(id, title, course_id, total_marks)
+            ),
+            grader:graded_by(id, full_name, email)
         `)
-        .eq('submission.student_id', studentId)
+        .in('submission_id', submissionIds)
         .order('graded_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get all graded submissions for instructor view
+ */
+export async function getGradedSubmissionsForInstructor() {
+    const { data, error } = await supabase
+        .from('submissions')
+        .select(`
+            *,
+            assessment:assessment_id(id, title, due_date, total_marks, course_id),
+            student:student_id(id, full_name, email),
+            grade:grades(id, score, total_marks, feedback, graded_at, graded_by, grader:graded_by(id, full_name))
+        `)
+        .eq('status', 'graded')
+        .order('submitted_at', { ascending: false });
 
     if (error) throw error;
     return data;

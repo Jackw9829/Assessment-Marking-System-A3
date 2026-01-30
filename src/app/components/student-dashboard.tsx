@@ -9,7 +9,7 @@ import { Download, FileText, Bell, Award, LogOut, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
-import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions } from '@/lib/supabase-helpers';
+import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades } from '@/lib/supabase-helpers';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -58,7 +58,10 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
       const studentSubmissions = await getStudentSubmissions(userProfile.id);
       setSubmissions(studentSubmissions || []);
 
-      setGrades([]);
+      // Fetch student's grades
+      const studentGrades = await getStudentGrades(userProfile.id);
+      setGrades(studentGrades || []);
+
       setNotifications([]);
 
       const gradedCount = studentSubmissions?.filter((s: any) => s.status === 'graded').length || 0;
@@ -68,7 +71,9 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
         totalAssessments: allAssessments?.length || 0,
         gradedAssessments: gradedCount,
         pendingAssessments: pendingCount,
-        averageGrade: 0,
+        averageGrade: studentGrades?.length > 0
+          ? Math.round(studentGrades.reduce((sum: number, g: any) => sum + (g.score / g.total_marks) * 100, 0) / studentGrades.length)
+          : 0,
       });
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -369,29 +374,45 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                   {grades.length === 0 ? (
                     <p className="text-sm text-gray-500">No grades yet</p>
                   ) : (
-                    grades.map((grade) => (
-                      <div key={grade.id} className="p-4 border rounded-lg space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <Award className="h-5 w-5 text-yellow-600" />
-                              <h3 className="font-medium">
-                                Grade: {grade.grade}/{grade.totalMarks} ({grade.percentage}%)
-                              </h3>
+                    grades.map((grade) => {
+                      const percentage = Math.round((grade.score / grade.total_marks) * 100);
+                      return (
+                        <div key={grade.id} className="p-4 border rounded-lg space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Award className="h-5 w-5 text-yellow-600" />
+                                <h3 className="font-medium">
+                                  {grade.submission?.assessment?.title || 'Assessment'}
+                                </h3>
+                              </div>
+                              <p className="text-lg font-semibold mt-1">
+                                Grade: {grade.score}/{grade.total_marks} ({percentage}%)
+                              </p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                Graded by {grade.grader?.full_name || 'Instructor'} on {new Date(grade.graded_at).toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Submitted: {grade.submission?.file_name} on {new Date(grade.submission?.submitted_at).toLocaleString()}
+                              </p>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              Graded by {grade.gradedByName} on {new Date(grade.gradedAt).toLocaleString()}
-                            </p>
+                            <Badge variant={percentage >= 50 ? 'default' : 'destructive'}>
+                              {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Good' : percentage >= 50 ? 'Pass' : 'Needs Improvement'}
+                            </Badge>
                           </div>
+                          {grade.feedback && (
+                            <>
+                              <Separator />
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Feedback:</h4>
+                                <p className="text-sm text-gray-700">{grade.feedback}</p>
+                              </div>
+                            </>
+                          )}
+                          <Progress value={percentage} className="mt-2" />
                         </div>
-                        <Separator />
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">Feedback:</h4>
-                          <p className="text-sm text-gray-700">{grade.feedback}</p>
-                        </div>
-                        <Progress value={grade.percentage} className="mt-2" />
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </CardContent>
