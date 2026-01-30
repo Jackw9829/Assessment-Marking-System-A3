@@ -547,7 +547,7 @@ export async function gradeSubmission(
 }
 
 /**
- * Get grades for a student
+ * Get grades for a student (only verified grades are visible to students)
  */
 export async function getStudentGrades(studentId: string) {
     // First get the student's submissions that are graded
@@ -562,7 +562,7 @@ export async function getStudentGrades(studentId: string) {
 
     const submissionIds = submissions.map(s => s.id);
 
-    // Then get grades for those submissions
+    // Then get ONLY VERIFIED grades for those submissions
     const { data, error } = await supabase
         .from('grades')
         .select(`
@@ -577,6 +577,7 @@ export async function getStudentGrades(studentId: string) {
             grader:graded_by(id, full_name, email)
         `)
         .in('submission_id', submissionIds)
+        .eq('verified', true)
         .order('graded_at', { ascending: false });
 
     if (error) throw error;
@@ -593,9 +594,119 @@ export async function getGradedSubmissionsForInstructor() {
             *,
             assessment:assessment_id(id, title, due_date, total_marks, course_id),
             student:student_id(id, full_name, email),
-            grade:grades(id, score, total_marks, feedback, graded_at, graded_by, grader:graded_by(id, full_name))
+            grade:grades(id, score, total_marks, feedback, graded_at, verified, graded_by, grader:graded_by(id, full_name))
         `)
         .eq('status', 'graded')
+        .order('submitted_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
+
+// =============================================
+// ADMIN GRADE VERIFICATION HELPERS
+// =============================================
+
+/**
+ * Get grades pending verification (Admin only)
+ */
+export async function getPendingVerificationGrades() {
+    const { data, error } = await supabase
+        .from('grades')
+        .select(`
+            *,
+            submission:submission_id(
+                id,
+                file_name,
+                submitted_at,
+                student:student_id(id, full_name, email),
+                assessment:assessment_id(id, title, course_id, total_marks)
+            ),
+            grader:graded_by(id, full_name, email)
+        `)
+        .eq('verified', false)
+        .order('graded_at', { ascending: true });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get verified/released grades (Admin only)
+ */
+export async function getVerifiedGrades() {
+    const { data, error } = await supabase
+        .from('grades')
+        .select(`
+            *,
+            submission:submission_id(
+                id,
+                file_name,
+                submitted_at,
+                student:student_id(id, full_name, email),
+                assessment:assessment_id(id, title, course_id, total_marks)
+            ),
+            grader:graded_by(id, full_name, email),
+            verifier:verified_by(id, full_name, email)
+        `)
+        .eq('verified', true)
+        .order('verified_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Verify and release a grade (Admin only)
+ */
+export async function verifyGrade(gradeId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('grades')
+        .update({
+            verified: true,
+            verified_by: user.id,
+            verified_at: new Date().toISOString(),
+        })
+        .eq('id', gradeId)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get all assessments for admin view
+ */
+export async function getAllAssessments() {
+    const { data, error } = await supabase
+        .from('assessments')
+        .select(`
+            *,
+            course:course_id(id, title, code),
+            creator:created_by(id, full_name, email)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get all submissions for admin view
+ */
+export async function getAllSubmissions() {
+    const { data, error } = await supabase
+        .from('submissions')
+        .select(`
+            *,
+            assessment:assessment_id(id, title, course_id),
+            student:student_id(id, full_name, email)
+        `)
         .order('submitted_at', { ascending: false });
 
     if (error) throw error;
