@@ -514,22 +514,7 @@ export async function gradeSubmission(
 
     if (!user) throw new Error('Not authenticated');
 
-    // Insert grade
-    const { data, error } = await supabase
-        .from('grades')
-        .insert({
-            submission_id: submissionId,
-            graded_by: user.id,
-            score,
-            total_marks: totalMarks,
-            feedback,
-        })
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    // Update submission status to 'graded'
+    // First update submission status to 'graded'
     const { error: updateError } = await supabase
         .from('submissions')
         .update({ status: 'graded' })
@@ -537,7 +522,26 @@ export async function gradeSubmission(
 
     if (updateError) {
         console.error('Failed to update submission status:', updateError);
+        throw updateError;
     }
+
+    // Use upsert to handle case where grade already exists (update instead of fail)
+    const { data, error } = await supabase
+        .from('grades')
+        .upsert({
+            submission_id: submissionId,
+            graded_by: user.id,
+            score,
+            total_marks: totalMarks,
+            feedback,
+            graded_at: new Date().toISOString(),
+        }, {
+            onConflict: 'submission_id'
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
 
     return data;
 }
