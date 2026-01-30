@@ -35,6 +35,7 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
   // Grade verification state
   const [selectedGrade, setSelectedGrade] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -101,9 +102,15 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
     setIsVerifying(true);
     try {
       await verifyGrade(gradeId);
-      toast.success('Grade verified and released to student!');
-      setSelectedGrade(null);
+
+      // Refresh data first
       await fetchData();
+
+      // Then close dialog and reset state
+      setVerifyDialogOpen(false);
+      setSelectedGrade(null);
+
+      toast.success('Grade verified and released to student!');
     } catch (error: any) {
       console.error('Verify grade error:', error);
       toast.error(error.message || 'Failed to verify grade');
@@ -241,11 +248,19 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
                           )}
                           <Progress value={percentage} className="mt-2" />
                           <div className="flex gap-2">
-                            <Dialog>
+                            <Dialog open={verifyDialogOpen && selectedGrade?.id === grade.id} onOpenChange={(open) => {
+                              setVerifyDialogOpen(open);
+                              if (!open) {
+                                setSelectedGrade(null);
+                              }
+                            }}>
                               <DialogTrigger asChild>
                                 <Button
                                   size="sm"
-                                  onClick={() => setSelectedGrade(grade)}
+                                  onClick={() => {
+                                    setSelectedGrade(grade);
+                                    setVerifyDialogOpen(true);
+                                  }}
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2" />
                                   Verify & Release

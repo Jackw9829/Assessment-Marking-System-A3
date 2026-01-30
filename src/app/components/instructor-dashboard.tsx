@@ -49,6 +49,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const [gradeScore, setGradeScore] = useState('');
   const [gradeFeedback, setGradeFeedback] = useState('');
   const [isGrading, setIsGrading] = useState(false);
+  const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -178,11 +179,17 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
         totalMarks,
         gradeFeedback || null
       );
-      toast.success('Submission graded successfully!');
+
+      // Refresh data first
+      await fetchData();
+
+      // Then close dialog and reset state
+      setGradeDialogOpen(false);
       setSelectedSubmission(null);
       setGradeScore('');
       setGradeFeedback('');
-      await fetchData();
+
+      toast.success('Submission graded successfully!');
     } catch (error: any) {
       console.error('Grading error:', error);
       toast.error(error.message || 'Failed to grade submission');
@@ -549,11 +556,21 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                             <Download className="h-4 w-4 mr-2" />
                             Download
                           </Button>
-                          <Dialog>
+                          <Dialog open={gradeDialogOpen && selectedSubmission?.id === submission.id} onOpenChange={(open) => {
+                            setGradeDialogOpen(open);
+                            if (!open) {
+                              setSelectedSubmission(null);
+                              setGradeScore('');
+                              setGradeFeedback('');
+                            }
+                          }}>
                             <DialogTrigger asChild>
                               <Button
                                 size="sm"
-                                onClick={() => setSelectedSubmission(submission)}
+                                onClick={() => {
+                                  setSelectedSubmission(submission);
+                                  setGradeDialogOpen(true);
+                                }}
                               >
                                 <CheckCircle className="h-4 w-4 mr-2" />
                                 Grade
