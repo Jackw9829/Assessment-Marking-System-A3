@@ -9,7 +9,7 @@ import { Download, FileText, Bell, Award, LogOut, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
-import { getStudentEnrollments, getCourseMaterials } from '@/lib/supabase-helpers';
+import { getStudentEnrollments, getCourseMaterials, getCourses } from '@/lib/supabase-helpers';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -34,7 +34,10 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
   const fetchData = async () => {
     try {
-      // Fetch enrolled courses
+      // Fetch all available courses (for discovery)
+      const allCourses = await getCourses();
+
+      // Fetch enrolled courses (for submissions/assessments)
       const enrollments = await getStudentEnrollments(userProfile.id);
 
       const courseMaterialsList = [];
