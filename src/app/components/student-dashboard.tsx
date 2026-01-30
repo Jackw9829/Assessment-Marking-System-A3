@@ -9,7 +9,7 @@ import { Download, FileText, Bell, Award, LogOut, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
-import { getStudentEnrollments, getCourseMaterials, getCourses } from '@/lib/supabase-helpers';
+import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments } from '@/lib/supabase-helpers';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -18,6 +18,7 @@ interface StudentDashboardProps {
 }
 
 export function StudentDashboard({ accessToken, userProfile, onLogout }: StudentDashboardProps) {
+  const [courses, setCourses] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -36,31 +37,36 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
     try {
       // Fetch all available courses (for discovery)
       const allCourses = await getCourses();
+      setCourses(allCourses || []);
 
       // Fetch enrolled courses (for submissions/assessments)
       const enrollments = await getStudentEnrollments(userProfile.id);
 
+      // Fetch materials from enrolled courses
       const courseMaterialsList = [];
       for (const enrollment of enrollments) {
         const materials = await getCourseMaterials(enrollment.course_id);
         courseMaterialsList.push(...materials);
       }
-
       setMaterials(courseMaterialsList);
-      setAssessments([]);
+
+      // Fetch assessments from all courses
+      const allAssessments = await getAssessments();
+      setAssessments(allAssessments || []);
+
       setSubmissions([]);
       setGrades([]);
       setNotifications([]);
 
       setReport({
-        totalAssessments: 0,
+        totalAssessments: allAssessments?.length || 0,
         gradedAssessments: 0,
-        pendingAssessments: 0,
+        pendingAssessments: allAssessments?.length || 0,
         averageGrade: 0,
       });
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load courses');
+      toast.error('Failed to load data');
     }
   };
 

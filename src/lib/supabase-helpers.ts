@@ -364,3 +364,57 @@ export async function updateProfile(
     if (error) throw error;
     return data;
 }
+
+// =============================================
+// ASSESSMENT HELPERS
+// =============================================
+
+/**
+ * Get all assessments (optionally filter by course)
+ */
+export async function getAssessments(courseId?: string) {
+    let query = supabase
+        .from('assessments')
+        .select('*')
+        .order('due_date', { ascending: true });
+
+    if (courseId) {
+        query = query.eq('course_id', courseId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Create an assessment (Instructor only)
+ */
+export async function createAssessment(
+    courseId: string,
+    title: string,
+    description: string | null,
+    dueDate: string,
+    totalMarks: number = 100
+) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('assessments')
+        .insert({
+            course_id: courseId,
+            title,
+            description,
+            due_date: dueDate,
+            total_marks: totalMarks,
+            created_by: user.id,
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}

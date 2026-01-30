@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { getCourses, uploadMaterial, getCourseMaterials, createCourse, downloadMaterial } from '@/lib/supabase-helpers';
+import { getCourses, uploadMaterial, getCourseMaterials, createCourse, downloadMaterial, getAssessments, createAssessment } from '@/lib/supabase-helpers';
 
 interface InstructorDashboardProps {
   accessToken: string;
@@ -67,7 +67,10 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
       }
       setMaterials(allMaterials);
 
-      setAssessments([]);
+      // Fetch assessments
+      const assessmentsData = await getAssessments();
+      setAssessments(Array.isArray(assessmentsData) ? assessmentsData : []);
+
       setSubmissions([]);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -108,14 +111,20 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     setIsCreating(true);
 
     try {
-      // TODO: Create assessments table and helper function
-      // For now, this is a placeholder
-      toast.info('Assessment feature coming soon. Create assessments table in Supabase first.');
+      await createAssessment(
+        assessmentCourse,
+        assessmentTitle,
+        assessmentDesc || null,
+        assessmentDue,
+        parseInt(assessmentMarks)
+      );
+      toast.success('Assessment created successfully!');
       setAssessmentTitle('');
       setAssessmentDesc('');
       setAssessmentCourse('');
       setAssessmentDue('');
       setAssessmentMarks('100');
+      await fetchData(); // Refresh data
     } catch (error: any) {
       console.error('Create error:', error);
       toast.error(error.message || 'Failed to create assessment');
@@ -343,7 +352,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                     <option value="">Select a course...</option>
                     {courses.map((course) => (
                       <option key={course.id} value={course.id}>
-                        {course.name}
+                        {course.title} ({course.code})
                       </option>
                     ))}
                   </select>
@@ -432,7 +441,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                       <option value="">Select a course...</option>
                       {courses.map((course) => (
                         <option key={course.id} value={course.id}>
-                          {course.name}
+                          {course.title} ({course.code})
                         </option>
                       ))}
                     </select>
