@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -16,6 +16,7 @@ import { StudentCalendar } from './student-calendar';
 import { GradesDashboard } from './grades-dashboard';
 import { SubmissionHistory } from './submission-history';
 import { InterimTranscript } from './interim-transcript';
+import { AIChatbot } from './ai-chatbot';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -34,6 +35,12 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
   const [selectedAssessment, setSelectedAssessment] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [report, setReport] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('materials');
+
+  // Handle chatbot navigation
+  const handleChatbotNavigate = (tab: string) => {
+    setActiveTab(tab);
+  };
 
   useEffect(() => {
     fetchData();
@@ -211,7 +218,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
           </div>
         )}
 
-        <Tabs defaultValue="materials" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="materials">Learning Materials</TabsTrigger>
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
@@ -470,6 +477,13 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* AI Chatbot */}
+      <AIChatbot
+        studentId={userProfile.id}
+        studentName={userProfile.name}
+        onNavigate={handleChatbotNavigate}
+      />
     </div>
   );
 }
