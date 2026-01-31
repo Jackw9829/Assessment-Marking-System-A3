@@ -154,6 +154,7 @@ export function AIChatbot({ studentId, studentName, onNavigate }: AIChatbotProps
                 };
                 setMessages(prev => [...prev, warningMessage]);
                 await logChatbotQuery(sessionId, 'unknown', 'fallback');
+                setIsLoading(false);
                 return;
             }
 
