@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FileText, Download, ExternalLink, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { getSubmissionPreviewUrl, isPreviewableFileType, isDocumentType } from '../../lib/supabase-helpers';
@@ -84,78 +83,82 @@ export function DocumentPreview({ filePath, fileName, fileType, fileSize, onDown
     };
 
     return (
-        <Card className="h-full flex flex-col">
-            <CardHeader className="pb-3">
+        <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex-shrink-0 bg-slate-50 border-b px-4 py-3">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        Submission Preview
-                    </CardTitle>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowPreview(!showPreview)}
-                    >
-                        {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-slate-200 p-2 rounded-lg">
+                            <FileText className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                            <h3 className="font-medium text-sm text-slate-800">Submission Preview</h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <Badge variant="secondary" className="text-xs">{getFileExtension(fileName)}</Badge>
+                                <span className="text-xs text-slate-500">{formatFileSize(fileSize)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={handleDownload} disabled={!previewUrl} title="Download">
+                            <Download className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={handleOpenInNewTab} disabled={!previewUrl} title="Open in New Tab">
+                            <ExternalLink className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowPreview(!showPreview)}
+                            title={showPreview ? 'Hide Preview' : 'Show Preview'}
+                        >
+                            {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline">{getFileExtension(fileName)}</Badge>
-                    <span className="text-sm text-gray-500">{formatFileSize(fileSize)}</span>
-                    <span className="text-sm text-gray-400 truncate max-w-[200px]" title={fileName}>
-                        {fileName}
-                    </span>
-                </div>
-            </CardHeader>
+                <p className="text-xs text-slate-500 mt-2 truncate" title={fileName}>
+                    {fileName}
+                </p>
+            </div>
 
-            <CardContent className="flex-1 flex flex-col min-h-0">
-                {/* Action Buttons */}
-                <div className="flex gap-2 mb-3">
-                    <Button variant="outline" size="sm" onClick={handleDownload} disabled={!previewUrl}>
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleOpenInNewTab} disabled={!previewUrl}>
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        Open in New Tab
-                    </Button>
-                </div>
-
-                {/* Preview Area */}
-                {showPreview && (
-                    <div className="flex-1 border rounded-lg overflow-hidden bg-gray-100 min-h-[400px]">
+            {/* Preview Area */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+                {showPreview ? (
+                    <div className="h-full bg-slate-100">
                         {isLoading ? (
-                            <div className="h-full flex items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                                <span className="ml-2 text-gray-600">Loading preview...</span>
+                            <div className="h-full flex flex-col items-center justify-center">
+                                <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                                <span className="mt-3 text-sm text-slate-600">Loading preview...</span>
                             </div>
                         ) : error ? (
-                            <div className="h-full flex flex-col items-center justify-center p-4 text-center">
-                                <AlertCircle className="h-12 w-12 text-red-400 mb-2" />
+                            <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+                                <div className="bg-red-100 p-4 rounded-full mb-4">
+                                    <AlertCircle className="h-10 w-10 text-red-500" />
+                                </div>
                                 <p className="text-red-600 font-medium">Failed to load preview</p>
-                                <p className="text-sm text-gray-500 mt-1">{error}</p>
+                                <p className="text-sm text-slate-500 mt-1 max-w-xs">{error}</p>
                                 <Button variant="outline" size="sm" className="mt-4" onClick={loadPreview}>
                                     Retry
                                 </Button>
                             </div>
                         ) : previewUrl ? (
-                            <>
+                            <div className="h-full">
                                 {/* PDF Preview */}
                                 {isPDF && (
                                     <iframe
-                                        src={`${previewUrl}#toolbar=1&navpanes=0`}
-                                        className="w-full h-full min-h-[500px]"
+                                        src={`${previewUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+                                        className="w-full h-full border-0"
                                         title="PDF Preview"
                                     />
                                 )}
 
                                 {/* Image Preview */}
                                 {isImage && (
-                                    <div className="h-full flex items-center justify-center p-4 overflow-auto">
+                                    <div className="h-full flex items-center justify-center p-4 overflow-auto bg-slate-900">
                                         <img
                                             src={previewUrl}
                                             alt={fileName}
-                                            className="max-w-full max-h-full object-contain"
+                                            className="max-w-full max-h-full object-contain rounded shadow-lg"
                                         />
                                     </div>
                                 )}
@@ -164,7 +167,7 @@ export function DocumentPreview({ filePath, fileName, fileType, fileSize, onDown
                                 {isText && (
                                     <iframe
                                         src={previewUrl}
-                                        className="w-full h-full min-h-[500px] bg-white"
+                                        className="w-full h-full bg-white border-0"
                                         title="Text Preview"
                                     />
                                 )}
@@ -173,7 +176,7 @@ export function DocumentPreview({ filePath, fileName, fileType, fileSize, onDown
                                 {isDocument && (
                                     <iframe
                                         src={getGoogleViewerUrl(previewUrl)}
-                                        className="w-full h-full min-h-[500px]"
+                                        className="w-full h-full border-0"
                                         title="Document Preview"
                                         sandbox="allow-scripts allow-same-origin allow-popups"
                                     />
@@ -181,46 +184,47 @@ export function DocumentPreview({ filePath, fileName, fileType, fileSize, onDown
 
                                 {/* Fallback for unsupported types */}
                                 {!isPDF && !isImage && !isText && !isDocument && (
-                                    <div className="h-full flex flex-col items-center justify-center p-4 text-center">
-                                        <FileText className="h-16 w-16 text-gray-400 mb-4" />
-                                        <p className="text-gray-600 font-medium">Preview not available</p>
-                                        <p className="text-sm text-gray-500 mt-1">
+                                    <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-white">
+                                        <div className="bg-slate-100 p-6 rounded-full mb-4">
+                                            <FileText className="h-12 w-12 text-slate-400" />
+                                        </div>
+                                        <p className="text-slate-700 font-medium">Preview not available</p>
+                                        <p className="text-sm text-slate-500 mt-1 max-w-xs">
                                             This file type ({fileType || 'unknown'}) cannot be previewed in the browser.
                                         </p>
-                                        <div className="flex gap-2 mt-4">
-                                            <Button variant="default" size="sm" onClick={handleDownload}>
-                                                <Download className="h-4 w-4 mr-1" />
-                                                Download to View
-                                            </Button>
-                                        </div>
+                                        <Button variant="default" size="sm" className="mt-4" onClick={handleDownload}>
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Download to View
+                                        </Button>
                                     </div>
                                 )}
-                            </>
+                            </div>
                         ) : (
-                            <div className="h-full flex items-center justify-center">
-                                <p className="text-gray-500">No preview available</p>
+                            <div className="h-full flex items-center justify-center bg-white">
+                                <p className="text-slate-500">No preview available</p>
                             </div>
                         )}
                     </div>
-                )}
-
-                {!showPreview && (
-                    <div className="flex-1 border rounded-lg bg-gray-50 flex items-center justify-center">
+                ) : (
+                    <div className="h-full bg-slate-50 flex items-center justify-center">
                         <div className="text-center">
-                            <EyeOff className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                            <p className="text-gray-500">Preview hidden</p>
+                            <div className="bg-slate-200 p-4 rounded-full mx-auto mb-3">
+                                <EyeOff className="h-8 w-8 text-slate-400" />
+                            </div>
+                            <p className="text-slate-500 text-sm">Preview hidden</p>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="mt-2"
+                                className="mt-3"
                                 onClick={() => setShowPreview(true)}
                             >
+                                <Eye className="h-4 w-4 mr-2" />
                                 Show Preview
                             </Button>
                         </div>
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }
