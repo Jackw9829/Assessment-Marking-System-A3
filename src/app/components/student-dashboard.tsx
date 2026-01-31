@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
-import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3 } from 'lucide-react';
+import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
@@ -14,6 +14,7 @@ import { NotificationCenter, UpcomingDeadlinesWidget } from './notification-cent
 import { AssessmentFilter } from './assessment-filter';
 import { StudentCalendar } from './student-calendar';
 import { GradesDashboard } from './grades-dashboard';
+import { SubmissionHistory } from './submission-history';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -221,7 +222,10 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
               <Filter className="h-4 w-4 mr-1" />
               Filter
             </TabsTrigger>
-            <TabsTrigger value="submissions">My Submissions</TabsTrigger>
+            <TabsTrigger value="submission-history">
+              <History className="h-4 w-4 mr-1" />
+              Submissions
+            </TabsTrigger>
             <TabsTrigger value="grades-dashboard">
               <BarChart3 className="h-4 w-4 mr-1" />
               Grades Dashboard
@@ -238,6 +242,11 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
           {/* Filter Tab */}
           <TabsContent value="filter" className="space-y-4">
             <AssessmentFilter studentId={userProfile.id} />
+          </TabsContent>
+
+          {/* Submission History Tab */}
+          <TabsContent value="submission-history" className="space-y-4">
+            <SubmissionHistory studentId={userProfile.id} />
           </TabsContent>
 
           {/* Grades Dashboard Tab */}

@@ -651,6 +651,64 @@ export interface Database {
                 Args: { p_student_id: string; p_assessment_id: string }
                 Returns: number
             }
+            get_student_submission_history: {
+                Args: { p_student_id: string }
+                Returns: {
+                    submission_id: string
+                    submission_reference: string
+                    assessment_id: string
+                    assessment_title: string
+                    assessment_type: string
+                    course_id: string
+                    course_code: string
+                    course_title: string
+                    submitted_at: string
+                    original_filename: string
+                    file_path: string
+                    file_size: number
+                    file_hash: string | null
+                    attempt_number: number
+                    is_latest: boolean
+                    submission_status: string
+                    late_duration: string | null
+                    status: string
+                    max_attempts: number | null
+                    due_date: string
+                }[]
+            }
+            get_submission_receipt: {
+                Args: { p_submission_id: string; p_student_id: string }
+                Returns: {
+                    submission_id: string
+                    submission_reference: string
+                    student_name: string
+                    student_email: string
+                    assessment_title: string
+                    course_code: string
+                    course_title: string
+                    submitted_at: string
+                    original_filename: string
+                    file_size: number
+                    file_hash: string | null
+                    attempt_number: number
+                    submission_status: string
+                    late_duration: string | null
+                    due_date: string
+                    receipt_generated_at: string
+                }[]
+            }
+            get_assessment_attempt_info: {
+                Args: { p_assessment_id: string; p_student_id: string }
+                Returns: {
+                    assessment_id: string
+                    max_attempts: number | null
+                    attempts_used: number
+                    attempts_remaining: number | null
+                    can_submit: boolean
+                    latest_submission_id: string | null
+                    latest_submitted_at: string | null
+                }[]
+            }
         }
         Enums: {
             user_role: UserRole
