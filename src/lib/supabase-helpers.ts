@@ -239,6 +239,52 @@ export async function deleteMaterial(materialId: string, filePath: string) {
     if (error) throw error;
 }
 
+/**
+ * Get signed URL for submission preview (Instructor only)
+ * Used for in-browser document preview during grading
+ */
+export async function getSubmissionPreviewUrl(filePath: string, expiresIn: number = 3600) {
+    const { data, error } = await supabase.storage
+        .from('course-materials')
+        .createSignedUrl(filePath, expiresIn);
+
+    if (error) throw error;
+    return data.signedUrl;
+}
+
+/**
+ * Check if file type supports in-browser preview
+ */
+export function isPreviewableFileType(fileType: string | null): boolean {
+    if (!fileType) return false;
+    const previewableTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'text/plain',
+        'text/html',
+    ];
+    return previewableTypes.includes(fileType);
+}
+
+/**
+ * Check if file type is a document that needs conversion for preview
+ */
+export function isDocumentType(fileType: string | null): boolean {
+    if (!fileType) return false;
+    const documentTypes = [
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ];
+    return documentTypes.includes(fileType);
+}
+
 // =============================================
 // ENROLLMENT HELPERS
 // =============================================

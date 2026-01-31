@@ -4,13 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings } from 'lucide-react';
+import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Progress } from './ui/progress';
 import { Separator } from './ui/separator';
+import { ScrollArea } from './ui/scroll-area';
+import { DocumentPreview } from './document-preview';
 import {
   getCourses,
   uploadMaterial,
@@ -828,7 +830,13 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                           <div>
                             <h3 className="font-medium">{submission.student?.full_name || 'Unknown Student'}</h3>
                             <p className="text-sm text-gray-600">{submission.assessment?.title || 'Assessment'}</p>
-                            <p className="text-sm text-gray-500">{submission.file_name}</p>
+                            <p className="text-sm text-gray-500">
+                              <FileText className="h-3 w-3 inline mr-1" />
+                              {submission.file_name}
+                              <span className="ml-2 text-xs text-gray-400">
+                                ({submission.file_type || 'unknown type'})
+                              </span>
+                            </p>
                             <p className="text-xs text-gray-500">
                               Submitted: {new Date(submission.submitted_at).toLocaleString()}
                             </p>
@@ -848,8 +856,8 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                             size="sm"
                             onClick={() => handleOpenRubricGrading(submission)}
                           >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Grade
+                            <Eye className="h-4 w-4 mr-2" />
+                            Preview & Grade
                           </Button>
                         </div>
                       </div>
@@ -1114,7 +1122,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
           </DialogContent>
         </Dialog>
 
-        {/* Rubric-Based Grading Dialog */}
+        {/* Rubric-Based Grading Dialog with Side-by-Side Preview */}
         <Dialog open={rubricGradingDialogOpen} onOpenChange={(open) => {
           if (!open) {
             setRubricGradingDialogOpen(false);
@@ -1123,119 +1131,154 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             setGradeFeedback('');
           }
         }}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Grade with Rubric</DialogTitle>
+          <DialogContent className="max-w-[95vw] w-[1400px] max-h-[95vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Digital Marking Interface
+              </DialogTitle>
               <DialogDescription>
-                Grade submission for: {selectedSubmission?.student?.full_name || 'Student'} - {selectedSubmission?.assessment?.title}
+                <span className="font-medium">{selectedSubmission?.student?.full_name || 'Student'}</span> - {selectedSubmission?.assessment?.title}
+                <span className="ml-2 text-xs">({selectedSubmission?.file_name})</span>
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-6">
-              {/* Real-time Total Display */}
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm opacity-90">Calculated Total</p>
-                    <p className="text-3xl font-bold">{calculatedTotal.toFixed(2)}%</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm opacity-90">Final Score</p>
-                    <p className="text-2xl font-bold">
-                      {Math.round((calculatedTotal / 100) * (selectedSubmission?.assessment?.total_marks || 100))}/
-                      {selectedSubmission?.assessment?.total_marks || 100}
-                    </p>
-                  </div>
-                </div>
-                <Progress value={calculatedTotal} className="mt-3 bg-blue-400" />
+            {/* Side-by-Side Layout */}
+            <div className="flex-1 grid grid-cols-2 gap-4 min-h-0 overflow-hidden">
+              {/* Left Panel: Document Preview */}
+              <div className="min-h-0 overflow-hidden">
+                {selectedSubmission && (
+                  <DocumentPreview
+                    filePath={selectedSubmission.file_path}
+                    fileName={selectedSubmission.file_name}
+                    fileType={selectedSubmission.file_type}
+                    fileSize={selectedSubmission.file_size}
+                  />
+                )}
               </div>
 
-              {/* Rubric Components */}
-              <div className="space-y-4">
-                {rubricComponents.map((component) => {
-                  const currentScore = rubricScores[component.id]?.score || 0;
-                  const contribution = (currentScore / component.max_score) * component.weight_percentage;
-
-                  return (
-                    <div key={component.id} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">{component.name}</h4>
-                          {component.description && (
-                            <p className="text-sm text-gray-500">{component.description}</p>
-                          )}
-                        </div>
-                        <Badge variant="outline">{component.weight_percentage}% weight</Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Score (0 - {component.max_score})</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={rubricScores[component.id]?.score || ''}
-                              onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
-                              min="0"
-                              max={component.max_score}
-                              className="w-24"
-                            />
-                            <span className="text-gray-500">/ {component.max_score}</span>
+              {/* Right Panel: Rubric Grading Tools */}
+              <div className="min-h-0 overflow-hidden flex flex-col">
+                <Card className="flex-1 flex flex-col min-h-0">
+                  <CardHeader className="flex-shrink-0 pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Calculator className="h-5 w-5" />
+                      Rubric Grading
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    <ScrollArea className="flex-1 pr-4">
+                      <div className="space-y-4">
+                        {/* Real-time Total Display */}
+                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg sticky top-0 z-10">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-sm opacity-90">Calculated Total</p>
+                              <p className="text-3xl font-bold">{calculatedTotal.toFixed(2)}%</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm opacity-90">Final Score</p>
+                              <p className="text-2xl font-bold">
+                                {Math.round((calculatedTotal / 100) * (selectedSubmission?.assessment?.total_marks || 100))}/
+                                {selectedSubmission?.assessment?.total_marks || 100}
+                              </p>
+                            </div>
                           </div>
+                          <Progress value={calculatedTotal} className="mt-3 bg-blue-400" />
                         </div>
-                        <div className="text-right">
-                          <Label className="text-gray-500">Contribution</Label>
-                          <p className="text-lg font-semibold text-blue-600">
-                            {contribution.toFixed(2)}%
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            ({currentScore}/{component.max_score}) × {component.weight_percentage}%
-                          </p>
+
+                        {/* Rubric Components */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-gray-600">Rubric Components</h4>
+                          {rubricComponents.map((component) => {
+                            const currentScore = rubricScores[component.id]?.score || 0;
+                            const contribution = (currentScore / component.max_score) * component.weight_percentage;
+
+                            return (
+                              <div key={component.id} className="border rounded-lg p-3 space-y-2 bg-white">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm">{component.name}</h4>
+                                    {component.description && (
+                                      <p className="text-xs text-gray-500">{component.description}</p>
+                                    )}
+                                  </div>
+                                  <Badge variant="outline" className="text-xs">{component.weight_percentage}%</Badge>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      value={rubricScores[component.id]?.score ?? ''}
+                                      onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
+                                      min="0"
+                                      max={component.max_score}
+                                      className="w-20 h-8 text-sm"
+                                      placeholder="0"
+                                    />
+                                    <span className="text-sm text-gray-500">/ {component.max_score}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-semibold text-blue-600">
+                                      +{contribution.toFixed(1)}%
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <Textarea
+                                  placeholder={`Feedback for ${component.name}...`}
+                                  value={rubricScores[component.id]?.feedback || ''}
+                                  onChange={(e) => handleRubricFeedbackChange(component.id, e.target.value)}
+                                  rows={1}
+                                  className="text-sm"
+                                />
+                              </div>
+                            );
+                          })}
                         </div>
+
+                        <Separator />
+
+                        {/* Overall Feedback */}
+                        <div className="space-y-2">
+                          <Label className="text-sm">Overall Feedback</Label>
+                          <Textarea
+                            placeholder="Provide overall feedback for the student..."
+                            value={gradeFeedback}
+                            onChange={(e) => setGradeFeedback(e.target.value)}
+                            rows={3}
+                            className="text-sm"
+                          />
+                        </div>
+
+                        {/* Validation Messages */}
+                        {!allComponentsGraded && (
+                          <p className="text-amber-600 text-sm bg-amber-50 p-2 rounded">
+                            ⚠️ Please score all rubric components before submitting
+                          </p>
+                        )}
+
+                        {allComponentsGraded && (
+                          <p className="text-green-600 text-sm bg-green-50 p-2 rounded">
+                            ✓ All components graded. Ready to submit.
+                          </p>
+                        )}
                       </div>
-
-                      <div className="space-y-2">
-                        <Label>Component Feedback (optional)</Label>
-                        <Textarea
-                          placeholder={`Feedback for ${component.name}...`}
-                          value={rubricScores[component.id]?.feedback || ''}
-                          onChange={(e) => handleRubricFeedbackChange(component.id, e.target.value)}
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
               </div>
-
-              <Separator />
-
-              {/* Overall Feedback */}
-              <div className="space-y-2">
-                <Label>Overall Feedback</Label>
-                <Textarea
-                  placeholder="Provide overall feedback for the student..."
-                  value={gradeFeedback}
-                  onChange={(e) => setGradeFeedback(e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              {/* Validation Messages */}
-              {!allComponentsGraded && (
-                <p className="text-amber-600 text-sm">
-                  ⚠️ Please score all rubric components before submitting
-                </p>
-              )}
             </div>
 
-            <DialogFooter className="gap-2">
+            <DialogFooter className="flex-shrink-0 gap-2 border-t pt-4">
               <Button variant="outline" onClick={() => setRubricGradingDialogOpen(false)}>
                 Cancel
               </Button>
               <Button
                 onClick={handleSubmitRubricGrade}
                 disabled={isGrading || !allComponentsGraded}
+                className="min-w-[200px]"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {isGrading ? 'Submitting...' : `Submit Grade (${calculatedTotal.toFixed(2)}%)`}
