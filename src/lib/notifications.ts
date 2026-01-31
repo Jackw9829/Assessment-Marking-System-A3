@@ -5,6 +5,7 @@
 // =============================================
 
 import { supabase } from './supabase-client';
+import type { Database } from './database.types';
 
 // =============================================
 // TYPES
@@ -115,7 +116,7 @@ export async function getNotifications(
         offset?: number;
     } = {}
 ): Promise<Notification[]> {
-    let query = supabase
+    let query = (supabase as any)
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false });
@@ -140,14 +141,14 @@ export async function getNotifications(
         throw error;
     }
 
-    return data || [];
+    return (data || []) as Notification[];
 }
 
 /**
  * Get unread notification count
  */
 export async function getUnreadNotificationCount(): Promise<number> {
-    const { count, error } = await supabase
+    const { count, error } = await (supabase as any)
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'unread');
@@ -164,7 +165,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
  * Mark a notification as read
  */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
         .from('notifications')
         .update({
             status: 'read',
@@ -182,7 +183,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
  * Mark all notifications as read
  */
 export async function markAllNotificationsAsRead(): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
         .from('notifications')
         .update({
             status: 'read',
@@ -200,7 +201,7 @@ export async function markAllNotificationsAsRead(): Promise<void> {
  * Dismiss a notification
  */
 export async function dismissNotification(notificationId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
         .from('notifications')
         .update({
             status: 'dismissed',
@@ -227,7 +228,7 @@ export async function getScheduledReminders(
         assessmentId?: string;
     } = {}
 ): Promise<ScheduledReminder[]> {
-    let query = supabase
+    let query = (supabase as any)
         .from('scheduled_reminders')
         .select(`
       *,
@@ -261,7 +262,7 @@ export async function getScheduledReminders(
         throw error;
     }
 
-    return data || [];
+    return (data || []) as ScheduledReminder[];
 }
 
 /**
@@ -270,7 +271,7 @@ export async function getScheduledReminders(
 export async function getReminderHistory(
     limit: number = 50
 ): Promise<ReminderHistoryEntry[]> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
         .from('reminder_audit_log')
         .select(`
       *,
@@ -289,7 +290,7 @@ export async function getReminderHistory(
         throw error;
     }
 
-    return data || [];
+    return (data || []) as ReminderHistoryEntry[];
 }
 
 // =============================================
@@ -304,7 +305,7 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
 
     if (!user) return null;
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
         .from('notification_preferences')
         .select('*')
         .eq('user_id', user.id)
@@ -315,7 +316,7 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
         throw error;
     }
 
-    return data;
+    return data as NotificationPreferences | null;
 }
 
 /**
@@ -330,13 +331,14 @@ export async function updateNotificationPreferences(
         throw new Error('User not authenticated');
     }
 
-    const { data, error } = await supabase
+    const updateData = {
+        user_id: user.id,
+        ...preferences,
+    };
+
+    const { data, error } = await (supabase as any)
         .from('notification_preferences')
-        .upsert({
-            user_id: user.id,
-            ...preferences,
-            updated_at: new Date().toISOString(),
-        }, {
+        .upsert(updateData, {
             onConflict: 'user_id',
         })
         .select()
@@ -347,7 +349,7 @@ export async function updateNotificationPreferences(
         throw error;
     }
 
-    return data;
+    return data as NotificationPreferences;
 }
 
 // =============================================
@@ -386,7 +388,7 @@ export async function getUpcomingDeadlines(
 
     if (!enrollments?.length) return [];
 
-    const courseIds = enrollments.map(e => e.course_id);
+    const courseIds = (enrollments as { course_id: string }[]).map(e => e.course_id);
 
     // Calculate future date
     const futureDate = new Date();
@@ -422,9 +424,19 @@ export async function getUpcomingDeadlines(
         .select('assessment_id')
         .eq('student_id', user.id);
 
-    const submittedAssessmentIds = new Set(submissions?.map(s => s.assessment_id) || []);
+    const submittedAssessmentIds = new Set(
+        (submissions as { assessment_id: string }[] | null)?.map(s => s.assessment_id) || []
+    );
 
-    return (assessments || []).map(a => {
+    type AssessmentWithCourse = {
+        id: string;
+        title: string;
+        due_date: string;
+        total_marks: number;
+        course: { id: string; title: string; code: string } | null;
+    };
+
+    return ((assessments || []) as AssessmentWithCourse[]).map(a => {
         const dueDate = new Date(a.due_date);
         const now = new Date();
         const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));

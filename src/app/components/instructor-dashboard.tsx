@@ -101,12 +101,13 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     try {
       // Fetch courses
       const coursesData = await getCourses();
-      setCourses(Array.isArray(coursesData) ? coursesData : []);
+      const coursesArray = Array.isArray(coursesData) ? coursesData : [];
+      setCourses(coursesArray);
 
       // Fetch materials for all courses
-      const allMaterials = [];
-      for (const course of coursesData) {
-        const materials = await getCourseMaterials(course.id);
+      const allMaterials: any[] = [];
+      for (const course of coursesArray) {
+        const materials = await getCourseMaterials((course as any).id);
         allMaterials.push(...materials);
       }
       setMaterials(allMaterials);
@@ -264,7 +265,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     setRubricDialogOpen(true);
 
     try {
-      const template = await getRubricTemplate(assessment.id);
+      const template = await getRubricTemplate(assessment.id) as any;
       if (template) {
         setRubricTemplate(template);
         setRubricComponents(template.components || []);
@@ -323,8 +324,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
         description: newComponentDesc,
         weight_percentage: weight,
         max_score: 100,
-        display_order: rubricComponents.length,
-      });
+      } as any);
 
       setRubricComponents([...rubricComponents, newComponent]);
       setNewComponentName('');
@@ -368,7 +368,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
     // Load rubric template for this assessment
     try {
-      const template = await getRubricTemplate(submission.assessment?.id);
+      const template = await getRubricTemplate(submission.assessment?.id) as any;
       if (!template || !template.components || template.components.length === 0) {
         // No rubric - use simple grading
         setGradeDialogOpen(true);

@@ -68,7 +68,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
         fetchNotifications();
 
         // Subscribe to new notifications
-        const unsubscribe = subscribeToNotifications(userId, (newNotification) => {
+        const unsubscribe = subscribeToNotifications(userId, (newNotification: Notification) => {
             setNotifications((prev) => [newNotification, ...prev]);
             setUnreadCount((prev) => prev + 1);
 
@@ -334,7 +334,7 @@ function NotificationSettingsDialog({ userId }: { userId: string }) {
     };
 
     const updatePreference = (key: keyof NotificationPreferences, value: boolean) => {
-        setPreferences((prev) => (prev ? { ...prev, [key]: value } : null));
+        setPreferences((prev: NotificationPreferences | null) => (prev ? { ...prev, [key]: value } : null));
     };
 
     return (
@@ -528,10 +528,10 @@ export function UpcomingDeadlinesWidget({ className }: UpcomingDeadlinesWidgetPr
                             <div
                                 key={item.assessment.id}
                                 className={`flex items-center justify-between p-3 rounded-lg border ${!item.submitted && item.daysUntilDue <= 1
-                                        ? 'border-red-200 bg-red-50'
-                                        : !item.submitted && item.daysUntilDue <= 3
-                                            ? 'border-orange-200 bg-orange-50'
-                                            : ''
+                                    ? 'border-red-200 bg-red-50'
+                                    : !item.submitted && item.daysUntilDue <= 3
+                                        ? 'border-orange-200 bg-orange-50'
+                                        : ''
                                     }`}
                             >
                                 <div className="space-y-1">

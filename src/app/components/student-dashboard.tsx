@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial } from '@/lib/supabase-helpers';
+import { NotificationCenter, UpcomingDeadlinesWidget } from './notification-center';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -147,38 +148,7 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
             <p className="text-sm text-gray-600">Welcome, {userProfile.name}</p>
           </div>
           <div className="flex gap-4 items-center">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="icon" className="relative">
-                  <Bell className="h-4 w-4" />
-                  {notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                      {notifications.filter(n => !n.read).length}
-                    </span>
-                  )}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Notifications</DialogTitle>
-                  <DialogDescription>Recent updates and announcements</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <p className="text-sm text-gray-500">No notifications</p>
-                  ) : (
-                    notifications.map((notif) => (
-                      <div key={notif.id || notif.timestamp} className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm font-medium">{notif.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(notif.timestamp).toLocaleString()}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
+            <NotificationCenter userId={userProfile.id} />
             <Button variant="outline" onClick={onLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Logout
@@ -242,7 +212,13 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
             <TabsTrigger value="submissions">My Submissions</TabsTrigger>
             <TabsTrigger value="grades">Grades</TabsTrigger>
+            <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
           </TabsList>
+
+          {/* Upcoming Deadlines Tab */}
+          <TabsContent value="deadlines" className="space-y-4">
+            <UpcomingDeadlinesWidget />
+          </TabsContent>
 
           <TabsContent value="materials" className="space-y-4">
             <Card>
