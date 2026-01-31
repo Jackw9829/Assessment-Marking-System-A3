@@ -13,6 +13,7 @@ import { Progress } from './ui/progress';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { DocumentPreview } from './document-preview';
+import { VisuallyHidden } from './ui/visually-hidden';
 import {
   getCourses,
   uploadMaterial,
@@ -1131,24 +1132,30 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             setGradeFeedback('');
           }
         }}>
-          <DialogContent className="max-w-[98vw] w-[1600px] max-h-[95vh] overflow-hidden flex flex-col p-0">
-            {/* Enhanced Header */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-6 py-4 flex-shrink-0">
+          <DialogContent className="max-w-[95vw] w-[1200px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+            {/* Accessibility: Hidden title and description for screen readers */}
+            <VisuallyHidden>
+              <DialogTitle>Digital Marking Interface</DialogTitle>
+              <DialogDescription>
+                Grade submission from {selectedSubmission?.student?.full_name} for {selectedSubmission?.assessment?.title}
+              </DialogDescription>
+            </VisuallyHidden>
+
+            {/* Compact Header */}
+            <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-4 py-3 flex-shrink-0">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Eye className="h-5 w-5" />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
                   <div>
-                    <h2 className="text-lg font-semibold">Digital Marking Interface</h2>
-                    <p className="text-sm text-slate-300">
+                    <h2 className="text-sm font-semibold">Digital Marking Interface</h2>
+                    <p className="text-xs text-slate-300">
                       <span className="font-medium text-white">{selectedSubmission?.student?.full_name || 'Student'}</span>
-                      <span className="mx-2">•</span>
+                      <span className="mx-1">•</span>
                       {selectedSubmission?.assessment?.title}
                     </p>
                   </div>
                 </div>
-                <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs max-w-[200px] truncate">
                   {selectedSubmission?.file_name}
                 </Badge>
               </div>
@@ -1170,166 +1177,143 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
               {/* Right Panel: Rubric Grading Tools - Takes 2/5 of space */}
               <div className="col-span-2 min-h-0 overflow-hidden flex flex-col bg-white">
-                {/* Score Summary Header */}
-                <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/10 rounded-lg p-3">
-                      <p className="text-xs uppercase tracking-wide opacity-80">Calculated Total</p>
-                      <p className="text-2xl font-bold mt-1">{calculatedTotal.toFixed(1)}%</p>
+                {/* Compact Score Summary Header */}
+                <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 bg-white/10 rounded-lg px-3 py-2 text-center">
+                      <p className="text-[10px] uppercase tracking-wide opacity-80">Total</p>
+                      <p className="text-xl font-bold">{calculatedTotal.toFixed(1)}%</p>
                     </div>
-                    <div className="bg-white/10 rounded-lg p-3">
-                      <p className="text-xs uppercase tracking-wide opacity-80">Final Score</p>
-                      <p className="text-2xl font-bold mt-1">
+                    <div className="flex-1 bg-white/10 rounded-lg px-3 py-2 text-center">
+                      <p className="text-[10px] uppercase tracking-wide opacity-80">Score</p>
+                      <p className="text-xl font-bold">
                         {Math.round((calculatedTotal / 100) * (selectedSubmission?.assessment?.total_marks || 100))}
-                        <span className="text-base font-normal opacity-80">/{selectedSubmission?.assessment?.total_marks || 100}</span>
+                        <span className="text-sm font-normal opacity-80">/{selectedSubmission?.assessment?.total_marks || 100}</span>
                       </p>
                     </div>
                   </div>
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs mb-1 opacity-80">
-                      <span>Progress</span>
-                      <span>{calculatedTotal.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={calculatedTotal} className="h-2 bg-white/20" />
-                  </div>
+                  <Progress value={calculatedTotal} className="h-1.5 mt-2 bg-white/20" />
                 </div>
 
                 {/* Scrollable Content */}
                 <ScrollArea className="flex-1">
-                  <div className="p-4 space-y-4">
-                    {/* Rubric Components */}
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                        <Calculator className="h-4 w-4" />
-                        Rubric Components ({rubricComponents.length})
-                      </div>
-
-                      {rubricComponents.map((component, index) => {
-                        const currentScore = rubricScores[component.id]?.score || 0;
-                        const contribution = (currentScore / component.max_score) * component.weight_percentage;
-                        const isScored = currentScore > 0;
-
-                        return (
-                          <div
-                            key={component.id}
-                            className={`border rounded-xl p-4 space-y-3 transition-all ${isScored ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200 bg-white'
-                              }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${isScored ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'
-                                  }`}>
-                                  {index + 1}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-sm text-slate-800">{component.name}</h4>
-                                  {component.description && (
-                                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{component.description}</p>
-                                  )}
-                                </div>
-                              </div>
-                              <Badge
-                                variant="outline"
-                                className={`flex-shrink-0 ${isScored ? 'border-blue-300 bg-blue-100 text-blue-700' : ''}`}
-                              >
-                                {component.weight_percentage}% weight
-                              </Badge>
-                            </div>
-
-                            <div className="flex items-center gap-4 bg-slate-50 rounded-lg p-3">
-                              <div className="flex items-center gap-2 flex-1">
-                                <span className="text-xs text-slate-500">Score:</span>
-                                <Input
-                                  type="number"
-                                  value={rubricScores[component.id]?.score ?? ''}
-                                  onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
-                                  min="0"
-                                  max={component.max_score}
-                                  className="w-20 h-9 text-center font-medium"
-                                  placeholder="0"
-                                />
-                                <span className="text-sm text-slate-600 font-medium">/ {component.max_score}</span>
-                              </div>
-                              <div className="flex-shrink-0 text-right">
-                                <span className={`text-sm font-bold ${contribution > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
-                                  +{contribution.toFixed(1)}%
-                                </span>
-                              </div>
-                            </div>
-
-                            <Textarea
-                              placeholder={`Add feedback for ${component.name}...`}
-                              value={rubricScores[component.id]?.feedback || ''}
-                              onChange={(e) => handleRubricFeedbackChange(component.id, e.target.value)}
-                              rows={2}
-                              className="text-sm resize-none"
-                            />
-                          </div>
-                        );
-                      })}
+                  <div className="p-3 space-y-2">
+                    {/* Rubric Components Header */}
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500 px-1">
+                      <Calculator className="h-3 w-3" />
+                      Rubric Components ({rubricComponents.length})
                     </div>
 
-                    <Separator className="my-4" />
+                    {rubricComponents.map((component, index) => {
+                      const currentScore = rubricScores[component.id]?.score || 0;
+                      const contribution = (currentScore / component.max_score) * component.weight_percentage;
+                      const isScored = currentScore > 0;
+
+                      return (
+                        <div
+                          key={component.id}
+                          className={`border rounded-lg p-3 space-y-2 transition-all ${isScored ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200 bg-white'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${isScored ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'
+                                }`}>
+                                {index + 1}
+                              </div>
+                              <span className="font-medium text-sm text-slate-800 truncate">{component.name}</span>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`flex-shrink-0 text-[10px] px-1.5 py-0 ${isScored ? 'border-blue-300 bg-blue-100 text-blue-700' : ''}`}
+                            >
+                              {component.weight_percentage}%
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center gap-3 bg-slate-50 rounded px-2 py-1.5">
+                            <span className="text-xs text-slate-500">Score:</span>
+                            <Input
+                              type="number"
+                              value={rubricScores[component.id]?.score ?? ''}
+                              onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
+                              min="0"
+                              max={component.max_score}
+                              className="w-16 h-7 text-center text-sm"
+                              placeholder="0"
+                            />
+                            <span className="text-xs text-slate-500">/ {component.max_score}</span>
+                            <span className={`ml-auto text-xs font-semibold ${contribution > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+                              +{contribution.toFixed(1)}%
+                            </span>
+                          </div>
+
+                          <Input
+                            placeholder={`Feedback for ${component.name}...`}
+                            value={rubricScores[component.id]?.feedback || ''}
+                            onChange={(e) => handleRubricFeedbackChange(component.id, e.target.value)}
+                            className="text-xs h-8"
+                          />
+                        </div>
+                      );
+                    })}
+
+                    <Separator className="my-2" />
 
                     {/* Overall Feedback */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-slate-600">Overall Feedback</Label>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-600">Overall Feedback</Label>
                       <Textarea
-                        placeholder="Provide overall feedback and comments for the student..."
+                        placeholder="Provide overall feedback..."
                         value={gradeFeedback}
                         onChange={(e) => setGradeFeedback(e.target.value)}
-                        rows={4}
-                        className="text-sm resize-none"
+                        rows={2}
+                        className="text-xs resize-none"
                       />
                     </div>
 
-                    {/* Validation Messages */}
-                    <div className="pb-4">
-                      {!allComponentsGraded ? (
-                        <div className="flex items-center gap-2 text-amber-700 text-sm bg-amber-50 border border-amber-200 p-3 rounded-lg">
-                          <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                          Please score all rubric components before submitting
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-green-700 text-sm bg-green-50 border border-green-200 p-3 rounded-lg">
-                          <CheckCircle className="h-4 w-4" />
-                          All components graded. Ready to submit!
-                        </div>
-                      )}
-                    </div>
+                    {/* Compact Validation Messages */}
+                    {!allComponentsGraded ? (
+                      <div className="flex items-center gap-2 text-amber-700 text-xs bg-amber-50 border border-amber-200 p-2 rounded">
+                        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                        Score all components to submit
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-green-700 text-xs bg-green-50 border border-green-200 p-2 rounded">
+                        <CheckCircle className="h-3 w-3" />
+                        Ready to submit
+                      </div>
+                    )}
                   </div>
                 </ScrollArea>
               </div>
             </div>
 
-            {/* Enhanced Footer */}
-            <div className="flex-shrink-0 bg-white border-t px-6 py-4">
+            {/* Compact Footer */}
+            <div className="flex-shrink-0 bg-white border-t px-4 py-2">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-500">
-                  {allComponentsGraded ? (
-                    <span className="text-green-600 font-medium">✓ Ready to submit</span>
-                  ) : (
-                    <span>{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length} of {rubricComponents.length} components scored</span>
-                  )}
+                <div className="text-xs text-slate-500">
+                  {rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} scored
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={() => setRubricGradingDialogOpen(false)}>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setRubricGradingDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button
+                    size="sm"
                     onClick={handleSubmitRubricGrade}
                     disabled={isGrading || !allComponentsGraded}
-                    className="min-w-[180px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   >
                     {isGrading ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Submitting...
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Saving...
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Submit Grade ({calculatedTotal.toFixed(1)}%)
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Submit ({calculatedTotal.toFixed(1)}%)
                       </>
                     )}
                   </Button>
