@@ -548,21 +548,12 @@ export async function gradeSubmission(
 
 /**
  * Get grades for a student (only verified grades are visible to students)
+ * RLS policy ensures students can only see their own verified grades
  */
 export async function getStudentGrades(studentId: string) {
-    // First get the student's submissions that are graded
-    const { data: submissions, error: subError } = await supabase
-        .from('submissions')
-        .select('id')
-        .eq('student_id', studentId)
-        .eq('status', 'graded');
-
-    if (subError) throw subError;
-    if (!submissions || submissions.length === 0) return [];
-
-    const submissionIds = submissions.map(s => s.id);
-
-    // Then get ONLY VERIFIED grades for those submissions
+    // Query grades directly - RLS policy ensures:
+    // 1. Students can only see grades for their own submissions
+    // 2. Only verified grades are visible to students
     const { data, error } = await supabase
         .from('grades')
         .select(`
@@ -572,16 +563,23 @@ export async function getStudentGrades(studentId: string) {
                 file_name,
                 submitted_at,
                 student_id,
+                status,
                 assessment:assessment_id(id, title, course_id, total_marks)
             ),
             grader:graded_by(id, full_name, email)
         `)
-        .in('submission_id', submissionIds)
         .eq('verified', true)
         .order('graded_at', { ascending: false });
 
     if (error) throw error;
-    return data;
+
+    // Filter client-side to only show this student's grades
+    // (RLS should handle this, but adding as safety check)
+    const studentGrades = data?.filter(grade =>
+        grade.submission?.student_id === studentId
+    ) || [];
+
+    return studentGrades;
 }
 
 /**
