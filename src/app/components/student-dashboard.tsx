@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
-import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History } from 'lucide-react';
+import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History, GraduationCap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
@@ -15,6 +15,7 @@ import { AssessmentFilter } from './assessment-filter';
 import { StudentCalendar } from './student-calendar';
 import { GradesDashboard } from './grades-dashboard';
 import { SubmissionHistory } from './submission-history';
+import { InterimTranscript } from './interim-transcript';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -230,6 +231,10 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
               <BarChart3 className="h-4 w-4 mr-1" />
               Grades Dashboard
             </TabsTrigger>
+            <TabsTrigger value="transcript">
+              <GraduationCap className="h-4 w-4 mr-1" />
+              Transcript
+            </TabsTrigger>
             <TabsTrigger value="grades">Grades</TabsTrigger>
             <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
           </TabsList>
@@ -252,6 +257,11 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
           {/* Grades Dashboard Tab */}
           <TabsContent value="grades-dashboard" className="space-y-4">
             <GradesDashboard studentId={userProfile.id} />
+          </TabsContent>
+
+          {/* Interim Transcript Tab */}
+          <TabsContent value="transcript" className="space-y-4">
+            <InterimTranscript studentId={userProfile.id} />
           </TabsContent>
 
           {/* Upcoming Deadlines Tab */}
