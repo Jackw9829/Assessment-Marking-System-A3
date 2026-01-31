@@ -712,3 +712,306 @@ export async function getAllSubmissions() {
     if (error) throw error;
     return data;
 }
+
+// =============================================
+// RUBRIC HELPERS
+// =============================================
+
+export interface RubricComponent {
+    id?: string;
+    name: string;
+    description?: string;
+    weight_percentage: number;
+    max_score: number;
+    order_index: number;
+}
+
+export interface RubricScore {
+    component_id: string;
+    score: number;
+    feedback?: string;
+}
+
+/**
+ * Create or get rubric template for an assessment
+ */
+export async function createRubricTemplate(
+    assessmentId: string,
+    name: string,
+    description?: string
+) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('rubric_templates')
+        .insert({
+            assessment_id: assessmentId,
+            created_by: user.id,
+            name,
+            description,
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get rubric template for an assessment
+ */
+export async function getRubricTemplate(assessmentId: string) {
+    const { data, error } = await supabase
+        .from('rubric_templates')
+        .select(`
+            *,
+            components:rubric_components(
+                id, name, description, weight_percentage, max_score, order_index
+            )
+        `)
+        .eq('assessment_id', assessmentId)
+        .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+    return data;
+}
+
+/**
+ * Add rubric component to a template
+ */
+export async function addRubricComponent(
+    rubricTemplateId: string,
+    component: RubricComponent
+) {
+    const { data, error } = await supabase
+        .from('rubric_components')
+        .insert({
+            template_id: rubricTemplateId,
+            name: component.name,
+            description: component.description,
+            weight_percentage: component.weight_percentage,
+            max_score: component.max_score,
+            order_index: component.order_index,
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Update rubric component
+ */
+export async function updateRubricComponent(
+    componentId: string,
+    updates: Partial<RubricComponent>
+) {
+    const { data, error } = await supabase
+        .from('rubric_components')
+        .update(updates)
+        .eq('id', componentId)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Delete rubric component
+ */
+export async function deleteRubricComponent(componentId: string) {
+    const { error } = await supabase
+        .from('rubric_components')
+        .delete()
+        .eq('id', componentId);
+
+    if (error) throw error;
+}
+
+/**
+ * Get all rubric components for a template
+ */
+export async function getRubricComponents(rubricTemplateId: string) {
+    const { data, error } = await supabase
+        .from('rubric_components')
+        .select('*')
+        .eq('template_id', rubricTemplateId)
+        .order('order_index', { ascending: true });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Save rubric scores for a submission
+ */
+export async function saveRubricScores(
+    submissionId: string,
+    scores: RubricScore[]
+) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Upsert all scores
+    const scoresToInsert = scores.map(score => ({
+        submission_id: submissionId,
+        component_id: score.component_id,
+        score: score.score,
+        feedback: score.feedback || null,
+        graded_by: user.id,
+    }));
+
+    const { data, error } = await supabase
+        .from('rubric_scores')
+        .upsert(scoresToInsert, {
+            onConflict: 'submission_id,component_id'
+        })
+        .select();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get rubric scores for a submission
+ */
+export async function getRubricScores(submissionId: string) {
+    const { data, error } = await supabase
+        .from('rubric_scores')
+        .select(`
+            *,
+            component:component_id(
+                id, name, description, weight_percentage, max_score
+            )
+        `)
+        .eq('submission_id', submissionId);
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Calculate weighted total mark for a submission
+ * Formula: SUM((score / max_score) * weight_percentage)
+ */
+export function calculateWeightedTotal(
+    scores: { score: number; max_score: number; weight_percentage: number }[]
+): { weightedTotal: number; allGraded: boolean } {
+    if (!scores || scores.length === 0) {
+        return { weightedTotal: 0, allGraded: false };
+    }
+
+    const allGraded = scores.every(s => s.score !== null && s.score !== undefined);
+
+    const weightedTotal = scores.reduce((total, item) => {
+        if (item.score === null || item.score === undefined) return total;
+        const contribution = (item.score / item.max_score) * item.weight_percentage;
+        return total + contribution;
+    }, 0);
+
+    return { weightedTotal: Math.round(weightedTotal * 100) / 100, allGraded };
+}
+
+/**
+ * Validate that rubric weights sum to 100%
+ */
+export function validateRubricWeights(components: { weight_percentage: number }[]): {
+    isValid: boolean;
+    totalWeight: number;
+    message: string;
+} {
+    const totalWeight = components.reduce((sum, c) => sum + c.weight_percentage, 0);
+    const isValid = Math.abs(totalWeight - 100) < 0.01; // Allow tiny floating point errors
+
+    return {
+        isValid,
+        totalWeight: Math.round(totalWeight * 100) / 100,
+        message: isValid
+            ? 'Weights are valid (100%)'
+            : `Total weight is ${totalWeight.toFixed(2)}%. Must equal 100%.`
+    };
+}
+
+/**
+ * Grade submission with rubric scores
+ * This saves individual rubric scores and calculates the final weighted grade
+ */
+export async function gradeSubmissionWithRubric(
+    submissionId: string,
+    rubricScores: RubricScore[],
+    components: { id: string; weight_percentage: number; max_score: number }[],
+    totalMarks: number,
+    overallFeedback?: string
+) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Validate all components have scores
+    const componentIds = components.map(c => c.id);
+    const scoredIds = rubricScores.map(s => s.component_id);
+    const missingScores = componentIds.filter(id => !scoredIds.includes(id));
+
+    if (missingScores.length > 0) {
+        throw new Error(`Missing scores for ${missingScores.length} rubric component(s). All components must be graded.`);
+    }
+
+    // Calculate weighted total
+    const scoresWithWeights = rubricScores.map(score => {
+        const component = components.find(c => c.id === score.component_id);
+        if (!component) throw new Error('Invalid rubric component');
+        return {
+            score: score.score,
+            max_score: component.max_score,
+            weight_percentage: component.weight_percentage,
+        };
+    });
+
+    const { weightedTotal, allGraded } = calculateWeightedTotal(scoresWithWeights);
+
+    if (!allGraded) {
+        throw new Error('All rubric components must be graded before saving');
+    }
+
+    // Save rubric scores
+    await saveRubricScores(submissionId, rubricScores);
+
+    // Calculate final score based on total marks
+    // weightedTotal is a percentage (0-100), convert to actual marks
+    const finalScore = Math.round((weightedTotal / 100) * totalMarks);
+
+    // Update submission status and save grade
+    const { error: updateError } = await supabase
+        .from('submissions')
+        .update({ status: 'graded' })
+        .eq('id', submissionId);
+
+    if (updateError) throw updateError;
+
+    // Save the final grade
+    const { data, error } = await supabase
+        .from('grades')
+        .upsert({
+            submission_id: submissionId,
+            graded_by: user.id,
+            score: finalScore,
+            total_marks: totalMarks,
+            feedback: overallFeedback || `Weighted rubric score: ${weightedTotal.toFixed(2)}%`,
+            graded_at: new Date().toISOString(),
+        }, {
+            onConflict: 'submission_id'
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    return {
+        grade: data,
+        weightedTotal,
+        finalScore,
+        rubricScores,
+    };
+}

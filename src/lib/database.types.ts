@@ -1,6 +1,6 @@
 // =============================================
 // Auto-generated Supabase Database Types
-// Run: npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/lib/database.types.ts
+// Updated with rubric system tables
 // =============================================
 
 export type Json =
@@ -12,6 +12,7 @@ export type Json =
     | Json[]
 
 export type UserRole = 'admin' | 'instructor' | 'student'
+export type SubmissionStatus = 'submitted' | 'graded'
 
 export interface Database {
     public: {
@@ -135,6 +136,207 @@ export interface Database {
                     enrolled_at?: string
                 }
             }
+            assessments: {
+                Row: {
+                    id: string
+                    course_id: string
+                    title: string
+                    description: string | null
+                    due_date: string
+                    total_marks: number
+                    created_by: string
+                    created_at: string | null
+                    updated_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    course_id: string
+                    title: string
+                    description?: string | null
+                    due_date: string
+                    total_marks?: number
+                    created_by: string
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    course_id?: string
+                    title?: string
+                    description?: string | null
+                    due_date?: string
+                    total_marks?: number
+                    created_by?: string
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+            }
+            submissions: {
+                Row: {
+                    id: string
+                    assessment_id: string
+                    student_id: string
+                    file_path: string
+                    file_name: string
+                    file_size: number
+                    file_type: string
+                    submitted_at: string | null
+                    status: SubmissionStatus | null
+                }
+                Insert: {
+                    id?: string
+                    assessment_id: string
+                    student_id: string
+                    file_path: string
+                    file_name: string
+                    file_size: number
+                    file_type: string
+                    submitted_at?: string | null
+                    status?: SubmissionStatus | null
+                }
+                Update: {
+                    id?: string
+                    assessment_id?: string
+                    student_id?: string
+                    file_path?: string
+                    file_name?: string
+                    file_size?: number
+                    file_type?: string
+                    submitted_at?: string | null
+                    status?: SubmissionStatus | null
+                }
+            }
+            grades: {
+                Row: {
+                    id: string
+                    submission_id: string
+                    graded_by: string
+                    score: number
+                    total_marks: number
+                    feedback: string | null
+                    graded_at: string | null
+                    verified: boolean | null
+                    verified_by: string | null
+                    verified_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    submission_id: string
+                    graded_by: string
+                    score: number
+                    total_marks: number
+                    feedback?: string | null
+                    graded_at?: string | null
+                    verified?: boolean | null
+                    verified_by?: string | null
+                    verified_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    submission_id?: string
+                    graded_by?: string
+                    score?: number
+                    total_marks?: number
+                    feedback?: string | null
+                    graded_at?: string | null
+                    verified?: boolean | null
+                    verified_by?: string | null
+                    verified_at?: string | null
+                }
+            }
+            rubric_templates: {
+                Row: {
+                    id: string
+                    assessment_id: string | null
+                    name: string
+                    description: string | null
+                    created_by: string | null
+                    created_at: string | null
+                    updated_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    assessment_id?: string | null
+                    name: string
+                    description?: string | null
+                    created_by?: string | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    assessment_id?: string | null
+                    name?: string
+                    description?: string | null
+                    created_by?: string | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+            }
+            rubric_components: {
+                Row: {
+                    id: string
+                    template_id: string | null
+                    name: string
+                    description: string | null
+                    weight_percentage: number
+                    max_score: number | null
+                    order_index: number | null
+                    created_at: string | null
+                    updated_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    template_id?: string | null
+                    name: string
+                    description?: string | null
+                    weight_percentage: number
+                    max_score?: number | null
+                    order_index?: number | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    template_id?: string | null
+                    name?: string
+                    description?: string | null
+                    weight_percentage?: number
+                    max_score?: number | null
+                    order_index?: number | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+            }
+            rubric_scores: {
+                Row: {
+                    id: string
+                    submission_id: string | null
+                    component_id: string | null
+                    score: number
+                    feedback: string | null
+                    graded_by: string | null
+                    graded_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    submission_id?: string | null
+                    component_id?: string | null
+                    score: number
+                    feedback?: string | null
+                    graded_by?: string | null
+                    graded_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    submission_id?: string | null
+                    component_id?: string | null
+                    score?: number
+                    feedback?: string | null
+                    graded_by?: string | null
+                    graded_at?: string | null
+                }
+            }
         }
         Views: {
             [_ in never]: never
@@ -160,9 +362,14 @@ export interface Database {
                 Args: Record<string, never>
                 Returns: boolean
             }
+            calculate_weighted_total: {
+                Args: { p_submission_id: string }
+                Returns: number
+            }
         }
         Enums: {
             user_role: UserRole
+            submission_status: SubmissionStatus
         }
     }
 }
