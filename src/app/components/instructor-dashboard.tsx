@@ -1132,7 +1132,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             setGradeFeedback('');
           }
         }}>
-          <DialogContent className="max-w-[98vw] w-[1400px] h-[95vh] overflow-hidden flex flex-col p-0">
+          <DialogContent className="max-w-[99vw] w-[1800px] h-[95vh] overflow-hidden flex flex-col p-0">
             {/* Accessibility: Hidden title and description for screen readers */}
             <VisuallyHidden>
               <DialogTitle>Digital Marking Interface</DialogTitle>
