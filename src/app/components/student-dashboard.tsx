@@ -5,12 +5,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
-import { Download, FileText, Bell, Award, LogOut, Upload } from 'lucide-react';
+import { Download, FileText, Bell, Award, LogOut, Upload, Filter } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial } from '@/lib/supabase-helpers';
 import { NotificationCenter, UpcomingDeadlinesWidget } from './notification-center';
+import { AssessmentFilter } from './assessment-filter';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -210,10 +211,19 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
           <TabsList>
             <TabsTrigger value="materials">Learning Materials</TabsTrigger>
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
+            <TabsTrigger value="filter">
+              <Filter className="h-4 w-4 mr-1" />
+              Filter & Search
+            </TabsTrigger>
             <TabsTrigger value="submissions">My Submissions</TabsTrigger>
             <TabsTrigger value="grades">Grades</TabsTrigger>
             <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
           </TabsList>
+
+          {/* Filter Tab */}
+          <TabsContent value="filter" className="space-y-4">
+            <AssessmentFilter studentId={userProfile.id} />
+          </TabsContent>
 
           {/* Upcoming Deadlines Tab */}
           <TabsContent value="deadlines" className="space-y-4">
