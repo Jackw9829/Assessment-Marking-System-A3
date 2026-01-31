@@ -1132,7 +1132,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             setGradeFeedback('');
           }
         }}>
-          <DialogContent className="max-w-[98vw] w-[1400px] h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogContent className="max-w-[98vw] w-[1400px] h-[95vh] overflow-hidden flex flex-col p-0">
             {/* Accessibility: Hidden title and description for screen readers */}
             <VisuallyHidden>
               <DialogTitle>Digital Marking Interface</DialogTitle>
@@ -1141,34 +1141,30 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
               </DialogDescription>
             </VisuallyHidden>
 
-            {/* Header Bar - Fixed at top */}
-            <div className="flex-shrink-0 bg-gradient-to-r from-slate-800 to-slate-700 text-white px-5 py-3">
+            {/* Compact Header Bar */}
+            <div className="flex-shrink-0 bg-gradient-to-r from-slate-800 to-slate-700 text-white px-4 py-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/10 p-2 rounded-lg">
-                    <Eye className="h-5 w-5" />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
                   <div>
-                    <h2 className="text-base font-semibold">Digital Marking Interface</h2>
-                    <p className="text-sm text-slate-300">
+                    <h2 className="text-sm font-semibold">Digital Marking Interface</h2>
+                    <p className="text-xs text-slate-300">
                       <span className="font-medium text-white">{selectedSubmission?.student?.full_name || 'Student'}</span>
-                      <span className="mx-2">•</span>
+                      <span className="mx-1">•</span>
                       <span>{selectedSubmission?.assessment?.title}</span>
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="bg-white/20 text-white border-0 text-sm px-3 py-1">
-                    {selectedSubmission?.file_name}
-                  </Badge>
-                </div>
+                <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
+                  {selectedSubmission?.file_name}
+                </Badge>
               </div>
             </div>
 
-            {/* Main Content Area - Side by Side */}
+            {/* Main Content Area - Side by Side (50/50 split) */}
             <div className="flex-1 flex min-h-0 overflow-hidden">
-              {/* Left Panel: Document Preview (55% width) */}
-              <div className="w-[55%] flex-shrink-0 border-r border-slate-200 bg-slate-50 overflow-hidden">
+              {/* Left Panel: Document Preview */}
+              <div className="w-1/2 flex-shrink-0 border-r border-slate-200 bg-slate-50 overflow-hidden">
                 {selectedSubmission && (
                   <DocumentPreview
                     filePath={selectedSubmission.file_path}
@@ -1179,206 +1175,172 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                 )}
               </div>
 
-              {/* Right Panel: Rubric Grading (45% width) */}
-              <div className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
-                {/* Live Score Display - Sticky at top of rubric panel */}
-                <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
-                      <p className="text-xs uppercase tracking-wider opacity-80 mb-1">Calculated Total</p>
-                      <p className="text-3xl font-bold">{calculatedTotal.toFixed(1)}%</p>
+              {/* Right Panel: Rubric Grading - Full height utilization */}
+              <div className="w-1/2 flex flex-col min-h-0 bg-white overflow-hidden">
+                {/* Compact Score Summary - Inline layout */}
+                <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <p className="text-[10px] uppercase tracking-wide opacity-70">Total</p>
+                        <p className="text-2xl font-bold">{calculatedTotal.toFixed(1)}%</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] uppercase tracking-wide opacity-70">Score</p>
+                        <p className="text-2xl font-bold">
+                          {Math.round((calculatedTotal / 100) * (selectedSubmission?.assessment?.total_marks || 100))}
+                          <span className="text-sm font-normal opacity-70">/{selectedSubmission?.assessment?.total_marks || 100}</span>
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
-                      <p className="text-xs uppercase tracking-wider opacity-80 mb-1">Final Score</p>
-                      <p className="text-3xl font-bold">
-                        {Math.round((calculatedTotal / 100) * (selectedSubmission?.assessment?.total_marks || 100))}
-                        <span className="text-lg font-normal opacity-70">/{selectedSubmission?.assessment?.total_marks || 100}</span>
-                      </p>
+                    <div className="flex items-center gap-2 text-xs opacity-80">
+                      <span>{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} scored</span>
+                      <Progress value={(rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length / rubricComponents.length) * 100} className="w-20 h-1.5 bg-white/20" />
                     </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs opacity-80 mb-1">
-                      <span>Grading Progress</span>
-                      <span>{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length} of {rubricComponents.length} scored</span>
-                    </div>
-                    <Progress value={calculatedTotal} className="h-2 bg-white/20" />
                   </div>
                 </div>
 
-                {/* Scrollable Rubric Components */}
-                <div className="flex-1 overflow-y-auto">
-                  <div className="p-4 space-y-4">
+                {/* Scrollable Rubric Components - Maximum height */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <div className="p-3">
                     {/* Section Header */}
-                    <div className="flex items-center justify-between sticky top-0 bg-white py-2 z-10 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <Calculator className="h-4 w-4 text-slate-500" />
-                        <span className="font-semibold text-sm text-slate-700">Rubric Components</span>
-                        <Badge variant="secondary" className="text-xs">{rubricComponents.length} items</Badge>
-                      </div>
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+                      <Calculator className="h-4 w-4 text-slate-500" />
+                      <span className="font-semibold text-sm text-slate-700">Rubric Components</span>
+                      <Badge variant="secondary" className="text-xs">{rubricComponents.length} items</Badge>
                     </div>
 
-                    {/* Rubric Component Cards */}
-                    {rubricComponents.map((component, index) => {
-                      const currentScore = rubricScores[component.id]?.score || 0;
-                      const contribution = (currentScore / component.max_score) * component.weight_percentage;
-                      const isScored = currentScore > 0;
-                      const scorePercentage = (currentScore / component.max_score) * 100;
+                    {/* Rubric Component Cards - Compact but complete */}
+                    <div className="space-y-3">
+                      {rubricComponents.map((component, index) => {
+                        const currentScore = rubricScores[component.id]?.score || 0;
+                        const contribution = (currentScore / component.max_score) * component.weight_percentage;
+                        const isScored = currentScore > 0;
 
-                      return (
-                        <div
-                          key={component.id}
-                          className={`border-2 rounded-xl p-4 transition-all duration-200 ${isScored
-                            ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm'
-                            : 'border-slate-200 bg-white hover:border-slate-300'
-                            }`}
-                        >
-                          {/* Component Title Row */}
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <div className="flex items-start gap-3">
-                              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${isScored
-                                ? 'bg-gradient-to-br from-blue-500 to-indigo-500 text-white'
-                                : 'bg-slate-100 text-slate-500 border border-slate-200'
-                                }`}>
-                                {index + 1}
+                        return (
+                          <div
+                            key={component.id}
+                            className={`border rounded-lg p-3 transition-all ${isScored
+                              ? 'border-blue-300 bg-blue-50/50'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                              }`}
+                          >
+                            {/* Component Header */}
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isScored
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-slate-200 text-slate-600'
+                                  }`}>
+                                  {index + 1}
+                                </div>
+                                <span className="font-semibold text-sm text-slate-800 truncate">{component.name}</span>
                               </div>
-                              <div>
-                                <h4 className="font-semibold text-slate-800">{component.name}</h4>
-                                {component.description && (
-                                  <p className="text-xs text-slate-500 mt-0.5">{component.description}</p>
-                                )}
-                              </div>
+                              <Badge variant="outline" className="flex-shrink-0 text-xs">
+                                {component.weight_percentage}% weight
+                              </Badge>
                             </div>
-                            <Badge
-                              className={`flex-shrink-0 ${isScored
-                                ? 'bg-blue-100 text-blue-700 border-blue-200'
-                                : 'bg-slate-100 text-slate-600'
-                                }`}
-                            >
-                              {component.weight_percentage}% weight
-                            </Badge>
-                          </div>
 
-                          {/* Score Input Section */}
-                          <div className="bg-white rounded-lg border border-slate-200 p-3 mb-3">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <Label className="text-sm text-slate-600 whitespace-nowrap">Score:</Label>
-                                <Input
-                                  type="number"
-                                  value={rubricScores[component.id]?.score ?? ''}
-                                  onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
-                                  min="0"
-                                  max={component.max_score}
-                                  className="w-24 h-10 text-center text-lg font-semibold"
-                                  placeholder="0"
-                                />
-                                <span className="text-lg text-slate-400">/</span>
-                                <span className="text-lg font-medium text-slate-600">{component.max_score}</span>
+                            {/* Score Row - Compact */}
+                            <div className="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2 mb-2">
+                              <span className="text-xs text-slate-500">Score:</span>
+                              <Input
+                                type="number"
+                                value={rubricScores[component.id]?.score ?? ''}
+                                onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
+                                min="0"
+                                max={component.max_score}
+                                className="w-16 h-8 text-center text-sm font-semibold"
+                                placeholder="0"
+                              />
+                              <span className="text-sm text-slate-500">/ {component.max_score}</span>
+                              <div className="flex-1">
+                                <Progress value={(currentScore / component.max_score) * 100} className="h-1.5" />
                               </div>
-
-                              <div className="flex-1 mx-4">
-                                <Progress value={scorePercentage} className="h-2" />
-                              </div>
-
-                              <div className={`text-right min-w-[80px] ${contribution > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
-                                <p className="text-lg font-bold">+{contribution.toFixed(1)}%</p>
-                                <p className="text-xs opacity-70">contribution</p>
-                              </div>
+                              <span className={`text-sm font-bold min-w-[50px] text-right ${contribution > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+                                +{contribution.toFixed(1)}%
+                              </span>
                             </div>
-                          </div>
 
-                          {/* Feedback Input */}
-                          <div>
-                            <Label className="text-xs text-slate-500 mb-1 block">Feedback for this component</Label>
+                            {/* Feedback - Full width textarea */}
                             <Textarea
-                              placeholder={`Enter specific feedback for ${component.name}...`}
+                              placeholder={`Feedback for ${component.name}...`}
                               value={rubricScores[component.id]?.feedback || ''}
                               onChange={(e) => handleRubricFeedbackChange(component.id, e.target.value)}
                               rows={2}
-                              className="text-sm resize-none"
+                              className="text-sm w-full"
                             />
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
 
-                    {/* Overall Feedback Section */}
-                    <div className="border-2 border-slate-200 rounded-xl p-4 bg-slate-50">
-                      <Label className="font-semibold text-slate-700 mb-2 block">Overall Feedback</Label>
+                    {/* Overall Feedback */}
+                    <div className="mt-3 border rounded-lg p-3 bg-slate-50">
+                      <Label className="text-sm font-semibold text-slate-700 mb-1.5 block">Overall Feedback</Label>
                       <Textarea
-                        placeholder="Provide overall comments and feedback for the student's submission..."
+                        placeholder="Provide overall comments for the student..."
                         value={gradeFeedback}
                         onChange={(e) => setGradeFeedback(e.target.value)}
-                        rows={3}
-                        className="text-sm resize-none bg-white"
+                        rows={2}
+                        className="text-sm bg-white"
                       />
                     </div>
 
-                    {/* Status Message */}
-                    <div className={`rounded-xl p-4 flex items-center gap-3 ${allComponentsGraded
-                      ? 'bg-green-50 border-2 border-green-200'
-                      : 'bg-amber-50 border-2 border-amber-200'
+                    {/* Status Message - Compact */}
+                    <div className={`mt-3 rounded-lg p-2.5 flex items-center gap-2 ${allComponentsGraded
+                      ? 'bg-green-50 border border-green-200'
+                      : 'bg-amber-50 border border-amber-200'
                       }`}>
                       {allComponentsGraded ? (
                         <>
-                          <div className="bg-green-500 rounded-full p-1">
-                            <CheckCircle className="h-5 w-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-green-800">Ready to Submit</p>
-                            <p className="text-sm text-green-600">All rubric components have been scored.</p>
-                          </div>
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-700">Ready to submit</span>
                         </>
                       ) : (
                         <>
-                          <div className="bg-amber-500 rounded-full p-2">
-                            <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-amber-800">Incomplete Grading</p>
-                            <p className="text-sm text-amber-600">
-                              Please score {rubricComponents.length - rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length} remaining component(s).
-                            </p>
-                          </div>
+                          <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                          <span className="text-sm text-amber-700">
+                            Score {rubricComponents.length - rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length} more component(s)
+                          </span>
                         </>
                       )}
                     </div>
 
-                    {/* Bottom spacing for scroll */}
-                    <div className="h-4" />
+                    {/* Bottom padding */}
+                    <div className="h-2" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Footer - Fixed at bottom */}
-            <div className="flex-shrink-0 bg-white border-t border-slate-200 px-5 py-3">
+            {/* Compact Footer */}
+            <div className="flex-shrink-0 bg-white border-t border-slate-200 px-4 py-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 text-sm text-slate-600">
-                  <span className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${allComponentsGraded ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
-                    {rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} components scored
-                  </span>
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className={`w-2 h-2 rounded-full ${allComponentsGraded ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
+                  <span>{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} scored</span>
                   <span className="text-slate-300">|</span>
                   <span className="font-medium">Total: {calculatedTotal.toFixed(1)}%</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={() => setRubricGradingDialogOpen(false)}>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setRubricGradingDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button
+                    size="sm"
                     onClick={handleSubmitRubricGrade}
                     disabled={isGrading || !allComponentsGraded}
-                    className="min-w-[160px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   >
                     {isGrading ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Submitting...
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        Saving...
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
+                        <CheckCircle className="h-4 w-4 mr-1" />
                         Submit Grade ({calculatedTotal.toFixed(1)}%)
                       </>
                     )}
