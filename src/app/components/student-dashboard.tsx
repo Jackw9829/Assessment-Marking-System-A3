@@ -9,7 +9,7 @@ import { Download, FileText, Bell, Award, LogOut, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
-import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades } from '@/lib/supabase-helpers';
+import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial } from '@/lib/supabase-helpers';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -44,9 +44,17 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
       // Fetch materials from enrolled courses
       const courseMaterialsList = [];
-      for (const enrollment of enrollments) {
-        const materials = await getCourseMaterials(enrollment.course_id);
-        courseMaterialsList.push(...materials);
+      if (enrollments && enrollments.length > 0) {
+        for (const enrollment of enrollments) {
+          try {
+            const materials = await getCourseMaterials(enrollment.course_id);
+            if (materials) {
+              courseMaterialsList.push(...materials);
+            }
+          } catch (err) {
+            console.error(`Error fetching materials for course ${enrollment.course_id}:`, err);
+          }
+        }
       }
       setMaterials(courseMaterialsList);
 
@@ -83,6 +91,23 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
   const handleDownloadMaterial = async (materialId: string) => {
     try {
+      const material = materials.find(m => m.id === materialId);
+      if (!material) {
+        toast.error('Material not found');
+        return;
+      }
+
+      // Get the signed URL for the material
+      const url = await downloadMaterial(material.file_path);
+
+      // Create a temporary link and click it to trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = material.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       toast.success('Download started');
     } catch (error: any) {
       console.error('Download error:', error);

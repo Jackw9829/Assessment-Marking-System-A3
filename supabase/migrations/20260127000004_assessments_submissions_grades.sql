@@ -400,6 +400,7 @@ DO $$ BEGIN
 			ON grades FOR SELECT
 			USING (
 				is_student() AND
+				verified = TRUE AND
 				EXISTS (
 					SELECT 1 FROM submissions
 					WHERE submissions.id = grades.submission_id
