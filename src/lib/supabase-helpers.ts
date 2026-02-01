@@ -702,18 +702,23 @@ export async function getVerifiedGrades() {
 
 /**
  * Verify and release a grade (Admin only)
+ * Sets both verified and is_released flags to make grade visible to students
  */
 export async function verifyGrade(gradeId: string) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('Not authenticated');
 
+    const now = new Date().toISOString();
+
     const { data, error } = await supabase
         .from('grades')
         .update({
             verified: true,
             verified_by: user.id,
-            verified_at: new Date().toISOString(),
+            verified_at: now,
+            is_released: true,
+            released_at: now,
         })
         .eq('id', gradeId)
         .select()
