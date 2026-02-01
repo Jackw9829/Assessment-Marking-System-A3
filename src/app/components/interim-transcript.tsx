@@ -38,6 +38,7 @@ import {
     Award,
 } from 'lucide-react';
 import { cn } from './ui/utils';
+import { supabase } from '@/lib/supabase-client';
 import {
     TranscriptData,
     CourseTranscriptGroup,
@@ -93,6 +94,25 @@ export function InterimTranscript({ studentId }: InterimTranscriptProps) {
     // Initial fetch
     useEffect(() => {
         fetchData();
+    }, [fetchData]);
+
+    // Real-time subscription for grade updates (verification)
+    useEffect(() => {
+        const channel = supabase
+            .channel('transcript-grade-updates')
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'grades',
+            }, () => {
+                // Refresh when any grade is updated (verified/released)
+                fetchData();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [fetchData]);
 
     // Handle download

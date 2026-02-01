@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from './ui/utils';
+import { supabase } from '@/lib/supabase-client';
 import {
     FilterState,
     FilteredAssessment,
@@ -138,6 +139,25 @@ export function AssessmentFilter({ studentId }: AssessmentFilterProps) {
 
         return () => clearTimeout(timeoutId);
     }, [filters, fetchAssessments]);
+
+    // Real-time subscription for grade updates (verification)
+    useEffect(() => {
+        const channel = supabase
+            .channel('filter-grade-updates')
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'grades',
+            }, () => {
+                // Refresh when any grade is updated (verified/released)
+                fetchAssessments(filters);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchAssessments, filters]);
 
     // Reset all filters
     const handleResetFilters = () => {
