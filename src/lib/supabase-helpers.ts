@@ -111,6 +111,24 @@ export async function getCourses() {
 }
 
 /**
+ * Get a single course by ID
+ */
+export async function getCourseById(courseId: string) {
+    const { data, error } = await supabase
+        .from('courses')
+        .select(`
+      *,
+      instructor:instructor_id(id, full_name, email),
+      creator:created_by(id, full_name, email)
+    `)
+        .eq('id', courseId)
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
  * Get courses for a specific instructor (Instructor role)
  * Returns only courses created by the instructor (created_by = instructor_id)
  */

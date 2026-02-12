@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-import { getStudentEnrollments, getCourseMaterials, getEnrolledCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial } from '@/lib/supabase-helpers';
+import { getStudentEnrollments, getCourseMaterials, getEnrolledCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial, getCourseById } from '@/lib/supabase-helpers';
 import { NotificationCenter, UpcomingDeadlinesWidget } from './notification-center';
 import { AssessmentFilter } from './assessment-filter';
 import { StudentCalendar } from './student-calendar';
@@ -61,11 +61,19 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
   const [showCourseDetail, setShowCourseDetail] = useState(false);
 
   // Handle course selection
-  const handleCourseSelect = (courseId: string) => {
-    const course = enrolledCourses.find(e => e.course?.id === courseId)?.course;
-    if (course) {
-      setSelectedCourse(course);
-      setShowCourseDetail(true);
+  const handleCourseSelect = async (courseId: string) => {
+    try {
+      // Fetch course directly by ID to ensure it works for all courses
+      const course = await getCourseById(courseId);
+      if (course) {
+        setSelectedCourse(course);
+        setShowCourseDetail(true);
+      } else {
+        toast.error('Course not available');
+      }
+    } catch (error) {
+      console.error('Error loading course:', error);
+      toast.error('Failed to load course details');
     }
   };
 
