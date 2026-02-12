@@ -2,7 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { BookOpen, FileText, ClipboardList, ChevronRight, Users, GraduationCap } from 'lucide-react';
+import { BookOpen, FileText, ClipboardList, ChevronRight, Users, GraduationCap, CheckCircle2, Archive, TrendingUp } from 'lucide-react';
 
 interface CourseCardProps {
     course: {
@@ -10,8 +10,9 @@ interface CourseCardProps {
         title: string;
         code: string;
         description?: string;
-        instructor?: { name: string };
+        instructor?: { name: string; full_name?: string };
         image_url?: string;
+        status?: 'active' | 'completed' | 'archived';
     };
     role: 'student' | 'instructor' | 'admin';
     stats?: {
@@ -20,6 +21,8 @@ interface CourseCardProps {
         studentsCount?: number;
         completedAssessments?: number;
         averageGrade?: number;
+        submissionsCount?: number;
+        progress?: number;
     };
     onClick: () => void;
 }
@@ -46,9 +49,11 @@ function getGradient(courseId: string): string {
 
 export function CourseCard({ course, role, stats, onClick }: CourseCardProps) {
     const gradient = getGradient(course.id);
-    const progress = stats?.completedAssessments && stats?.assessmentsCount
+    const progress = stats?.progress ?? (stats?.completedAssessments && stats?.assessmentsCount
         ? Math.round((stats.completedAssessments / stats.assessmentsCount) * 100)
-        : 0;
+        : 0);
+
+    const instructorName = course.instructor?.full_name || course.instructor?.name;
 
     return (
         <Card
@@ -74,6 +79,20 @@ export function CourseCard({ course, role, stats, onClick }: CourseCardProps) {
                     {course.code}
                 </Badge>
 
+                {/* Status Badge */}
+                {course.status === 'completed' && (
+                    <Badge className="absolute top-3 right-3 bg-green-500 text-white border-0">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Completed
+                    </Badge>
+                )}
+                {course.status === 'archived' && (
+                    <Badge className="absolute top-3 right-3 bg-gray-500 text-white border-0">
+                        <Archive className="h-3 w-3 mr-1" />
+                        Archived
+                    </Badge>
+                )}
+
                 {/* Decorative Elements */}
                 <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full" />
                 <div className="absolute -top-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
@@ -84,10 +103,10 @@ export function CourseCard({ course, role, stats, onClick }: CourseCardProps) {
                 <h3 className="font-semibold text-lg text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
                     {course.title}
                 </h3>
-                {course.instructor && role === 'student' && (
+                {instructorName && role === 'student' && (
                     <p className="text-sm text-gray-500 flex items-center gap-1">
                         <GraduationCap className="h-3.5 w-3.5" />
-                        {course.instructor.name}
+                        {instructorName}
                     </p>
                 )}
             </CardHeader>
@@ -97,21 +116,19 @@ export function CourseCard({ course, role, stats, onClick }: CourseCardProps) {
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-1.5">
                         <FileText className="h-4 w-4 text-blue-500" />
-                        <span>{stats?.materialsCount || 0} Materials</span>
+                        <span>{stats?.materialsCount || 0}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <ClipboardList className="h-4 w-4 text-purple-500" />
-                        <span>{stats?.assessmentsCount || 0} Assessments</span>
+                        <span>{stats?.assessmentsCount || 0}</span>
                     </div>
+                    {(role === 'instructor' || role === 'admin') && stats?.studentsCount !== undefined && (
+                        <div className="flex items-center gap-1.5">
+                            <Users className="h-4 w-4 text-emerald-500" />
+                            <span>{stats.studentsCount}</span>
+                        </div>
+                    )}
                 </div>
-
-                {/* Instructor-specific: Students count */}
-                {role === 'instructor' && stats?.studentsCount !== undefined && (
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600 mt-2">
-                        <Users className="h-4 w-4 text-emerald-500" />
-                        <span>{stats.studentsCount} Students</span>
-                    </div>
-                )}
 
                 {/* Student Progress */}
                 {role === 'student' && stats?.assessmentsCount && stats.assessmentsCount > 0 && (
@@ -128,6 +145,7 @@ export function CourseCard({ course, role, stats, onClick }: CourseCardProps) {
                 {role === 'student' && stats?.averageGrade !== undefined && stats.averageGrade > 0 && (
                     <div className="mt-2 flex items-center gap-2">
                         <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                            <TrendingUp className="h-3 w-3 mr-1" />
                             Avg: {stats.averageGrade}%
                         </Badge>
                     </div>
