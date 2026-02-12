@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -26,8 +26,13 @@ import {
     File,
     FileImage,
     FileVideo,
-    FileArchive
+    FileArchive,
+    History,
+    Filter,
 } from 'lucide-react';
+import { CourseGradesDashboard } from './course-grades-dashboard';
+import { CourseSubmissionHistory } from './course-submission-history';
+import { InlineFilterBar, StudentFilterState, defaultFilterState, filterItems, FilterableItem } from './student-filter';
 import {
     getCourseMaterials,
     getAssessments,
@@ -92,6 +97,10 @@ export function StudentCourseDetail({ courseId, course, userProfile, onBack }: S
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [grades, setGrades] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Filter state for assessments
+    const [assessmentFilters, setAssessmentFilters] = useState<StudentFilterState>(defaultFilterState);
+
 
     // Submission state
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -214,6 +223,55 @@ export function StudentCourseDetail({ courseId, course, userProfile, onBack }: S
         ? Math.round(grades.reduce((sum, g) => sum + (g.score / g.total_marks) * 100, 0) / grades.length)
         : null;
 
+    // Filter assessments based on filter state
+    const filteredAssessments = useMemo(() => {
+        let filtered = [...assessments];
+
+        // Search filter
+        if (assessmentFilters.searchQuery) {
+            const query = assessmentFilters.searchQuery.toLowerCase();
+            filtered = filtered.filter(a =>
+                a.title?.toLowerCase().includes(query) ||
+                a.description?.toLowerCase().includes(query)
+            );
+        }
+
+        // Status filter
+        if (assessmentFilters.assessmentStatus !== 'all') {
+            filtered = filtered.filter(a => {
+                const status = getAssessmentStatus(a);
+                switch (assessmentFilters.assessmentStatus) {
+                    case 'not_submitted':
+                        return !['submitted', 'graded'].includes(status.status);
+                    case 'submitted':
+                        return status.status === 'submitted';
+                    case 'graded':
+                        return status.status === 'graded';
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        // Sorting
+        filtered.sort((a, b) => {
+            let comparison = 0;
+            switch (assessmentFilters.sortField) {
+                case 'date':
+                    comparison = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                    break;
+                case 'title':
+                    comparison = (a.title || '').localeCompare(b.title || '');
+                    break;
+                default:
+                    comparison = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+            }
+            return assessmentFilters.sortOrder === 'asc' ? comparison : -comparison;
+        });
+
+        return filtered;
+    }, [assessments, assessmentFilters, grades, submissions]);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
             {/* Course Banner */}
@@ -316,6 +374,10 @@ export function StudentCourseDetail({ courseId, course, userProfile, onBack }: S
                         <TabsTrigger value="assessments" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                             <ClipboardList className="h-4 w-4 mr-2" />
                             Assessments
+                        </TabsTrigger>
+                        <TabsTrigger value="submissions" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                            <History className="h-4 w-4 mr-2" />
+                            Submissions
                         </TabsTrigger>
                         <TabsTrigger value="grades" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                             <Award className="h-4 w-4 mr-2" />
@@ -479,193 +541,197 @@ export function StudentCourseDetail({ courseId, course, userProfile, onBack }: S
 
                     {/* Assessments Tab */}
                     <TabsContent value="assessments">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <ClipboardList className="h-5 w-5 text-purple-500" />
-                                    Assessments
-                                </CardTitle>
-                                <CardDescription>
-                                    {completedCount} of {assessments.length} completed
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading ? (
-                                    <div className="space-y-3">
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="animate-pulse p-4 rounded-lg bg-gray-50">
-                                                <div className="h-5 bg-gray-200 rounded w-1/2 mb-2" />
-                                                <div className="h-4 bg-gray-200 rounded w-1/3" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : assessments.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <ClipboardList className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                        <p className="text-gray-500">No assessments assigned yet</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {assessments.map((assessment) => {
-                                            const status = getAssessmentStatus(assessment);
-                                            const grade = getGradeForAssessment(assessment.id);
-                                            const canSubmit = !['graded', 'submitted'].includes(status.status);
+                        <div className="space-y-4">
+                            {/* Filter Bar */}
+                            <InlineFilterBar
+                                filters={assessmentFilters}
+                                onFiltersChange={setAssessmentFilters}
+                                showStatus={true}
+                            />
 
-                                            return (
-                                                <div
-                                                    key={assessment.id}
-                                                    className={`p-4 rounded-lg border ${status.color} transition-colors`}
-                                                >
-                                                    <div className="flex items-start justify-between gap-4">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <h4 className="font-semibold text-gray-900">{assessment.title}</h4>
-                                                                <Badge variant="outline" className={status.color}>
-                                                                    {status.label}
-                                                                </Badge>
-                                                            </div>
-                                                            {assessment.description && (
-                                                                <p className="text-sm text-gray-600 mb-2">{assessment.description}</p>
-                                                            )}
-                                                            <div className="flex items-center gap-4 text-sm">
-                                                                <span className="flex items-center gap-1 text-gray-500">
-                                                                    <Calendar className="h-4 w-4" />
-                                                                    Due: {new Date(assessment.due_date).toLocaleDateString()}
-                                                                </span>
-                                                                <span className="flex items-center gap-1 text-gray-500">
-                                                                    <Award className="h-4 w-4" />
-                                                                    {assessment.total_marks} marks
-                                                                </span>
-                                                            </div>
-                                                            {grade && (
-                                                                <div className="mt-2 text-sm">
-                                                                    <span className="font-medium text-emerald-700">
-                                                                        Score: {grade.score}/{grade.total_marks} ({Math.round((grade.score / grade.total_marks) * 100)}%)
-                                                                    </span>
-                                                                    {grade.feedback && (
-                                                                        <p className="text-gray-600 mt-1">Feedback: {grade.feedback}</p>
-                                                                    )}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <ClipboardList className="h-5 w-5 text-purple-500" />
+                                        Assessments
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {completedCount} of {assessments.length} completed
+                                        {assessmentFilters.searchQuery || assessmentFilters.assessmentStatus !== 'all' ?
+                                            ` • Showing ${filteredAssessments.length} filtered` : ''}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading ? (
+                                        <div className="space-y-3">
+                                            {[1, 2, 3].map(i => (
+                                                <div key={i} className="animate-pulse p-4 rounded-lg bg-gray-50">
+                                                    <div className="h-5 bg-gray-200 rounded w-1/2 mb-2" />
+                                                    <div className="h-4 bg-gray-200 rounded w-1/3" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : filteredAssessments.length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <ClipboardList className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                            <p className="text-gray-500">
+                                                {assessments.length === 0
+                                                    ? 'No assessments assigned yet'
+                                                    : 'No assessments match your filters'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {filteredAssessments.map((assessment) => {
+                                                const status = getAssessmentStatus(assessment);
+                                                const grade = getGradeForAssessment(assessment.id);
+                                                const canSubmit = !['graded', 'submitted'].includes(status.status);
+
+                                                return (
+                                                    <div
+                                                        key={assessment.id}
+                                                        className={`p-4 rounded-lg border ${status.color} transition-colors`}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <h4 className="font-semibold text-gray-900">{assessment.title}</h4>
+                                                                    <Badge variant="outline" className={status.color}>
+                                                                        {status.label}
+                                                                    </Badge>
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                        {canSubmit && (
-                                                            <Dialog open={submitDialogOpen && selectedAssessment?.id === assessment.id} onOpenChange={(open) => {
-                                                                setSubmitDialogOpen(open);
-                                                                if (open) setSelectedAssessment(assessment);
-                                                            }}>
-                                                                <DialogTrigger asChild>
-                                                                    <Button className="bg-blue-600 hover:bg-blue-700">
-                                                                        <Upload className="h-4 w-4 mr-2" />
-                                                                        Submit
-                                                                    </Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent>
-                                                                    <DialogHeader>
-                                                                        <DialogTitle>Submit Assessment</DialogTitle>
-                                                                        <DialogDescription>
-                                                                            Upload your submission for "{assessment.title}"
-                                                                        </DialogDescription>
-                                                                    </DialogHeader>
-                                                                    <div className="space-y-4 py-4">
-                                                                        <div>
-                                                                            <Label htmlFor="file">Select File</Label>
-                                                                            <input
-                                                                                id="file"
-                                                                                type="file"
-                                                                                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                                                                                className="mt-2 w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                                                            />
-                                                                        </div>
-                                                                        {selectedFile && (
-                                                                            <p className="text-sm text-gray-600">
-                                                                                Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                                                                            </p>
+                                                                {assessment.description && (
+                                                                    <p className="text-sm text-gray-600 mb-2">{assessment.description}</p>
+                                                                )}
+                                                                <div className="flex items-center gap-4 text-sm">
+                                                                    <span className="flex items-center gap-1 text-gray-500">
+                                                                        <Calendar className="h-4 w-4" />
+                                                                        Due: {new Date(assessment.due_date).toLocaleDateString()}
+                                                                    </span>
+                                                                    <span className="flex items-center gap-1 text-gray-500">
+                                                                        <Award className="h-4 w-4" />
+                                                                        {assessment.total_marks} marks
+                                                                    </span>
+                                                                </div>
+                                                                {grade && (
+                                                                    <div className="mt-2 text-sm">
+                                                                        <span className="font-medium text-emerald-700">
+                                                                            Score: {grade.score}/{grade.total_marks} ({Math.round((grade.score / grade.total_marks) * 100)}%)
+                                                                        </span>
+                                                                        {grade.feedback && (
+                                                                            <p className="text-gray-600 mt-1">Feedback: {grade.feedback}</p>
                                                                         )}
                                                                     </div>
-                                                                    <DialogFooter>
-                                                                        <Button variant="outline" onClick={() => setSubmitDialogOpen(false)}>
-                                                                            Cancel
+                                                                )}
+                                                            </div>
+                                                            {canSubmit && (
+                                                                <Dialog open={submitDialogOpen && selectedAssessment?.id === assessment.id} onOpenChange={(open) => {
+                                                                    setSubmitDialogOpen(open);
+                                                                    if (open) setSelectedAssessment(assessment);
+                                                                }}>
+                                                                    <DialogTrigger asChild>
+                                                                        <Button className="bg-blue-600 hover:bg-blue-700">
+                                                                            <Upload className="h-4 w-4 mr-2" />
+                                                                            Submit
                                                                         </Button>
-                                                                        <Button
-                                                                            onClick={handleSubmitAssessment}
-                                                                            disabled={!selectedFile || isSubmitting}
-                                                                            className="bg-blue-600 hover:bg-blue-700"
-                                                                        >
-                                                                            {isSubmitting ? 'Submitting...' : 'Submit'}
-                                                                        </Button>
-                                                                    </DialogFooter>
-                                                                </DialogContent>
-                                                            </Dialog>
-                                                        )}
+                                                                    </DialogTrigger>
+                                                                    <DialogContent>
+                                                                        <DialogHeader>
+                                                                            <DialogTitle>Submit Assessment</DialogTitle>
+                                                                            <DialogDescription>
+                                                                                Upload your submission for "{assessment.title}"
+                                                                            </DialogDescription>
+                                                                        </DialogHeader>
+                                                                        <div className="space-y-4 py-4">
+                                                                            <div>
+                                                                                <Label htmlFor="file">Select File</Label>
+                                                                                <input
+                                                                                    id="file"
+                                                                                    type="file"
+                                                                                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                                                                    className="mt-2 w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                                                                />
+                                                                            </div>
+                                                                            {selectedFile && (
+                                                                                <p className="text-sm text-gray-600">
+                                                                                    Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                        <DialogFooter>
+                                                                            <Button variant="outline" onClick={() => setSubmitDialogOpen(false)}>
+                                                                                Cancel
+                                                                            </Button>
+                                                                            <Button
+                                                                                onClick={handleSubmitAssessment}
+                                                                                disabled={!selectedFile || isSubmitting}
+                                                                                className="bg-blue-600 hover:bg-blue-700"
+                                                                            >
+                                                                                {isSubmitting ? 'Submitting...' : 'Submit'}
+                                                                            </Button>
+                                                                        </DialogFooter>
+                                                                    </DialogContent>
+                                                                </Dialog>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
+                    {/* Submissions Tab */}
+                    <TabsContent value="submissions">
+                        <CourseSubmissionHistory
+                            courseId={courseId}
+                            courseCode={course.code}
+                            courseTitle={course.title}
+                            submissions={submissions.map((s: any) => ({
+                                id: s.id,
+                                assessment_id: s.assessment_id,
+                                assessment_title: assessments.find((a: any) => a.id === s.assessment_id)?.title || 'Assessment',
+                                file_name: s.file_name || s.file_path?.split('/').pop() || 'Unknown',
+                                file_path: s.file_path || '',
+                                file_size: s.file_size || 0,
+                                submitted_at: s.submitted_at,
+                                due_date: assessments.find((a: any) => a.id === s.assessment_id)?.due_date || s.submitted_at,
+                                is_latest: true, // Assuming latest for each assessment
+                                version: 1,
+                                status: new Date(s.submitted_at) > new Date(assessments.find((a: any) => a.id === s.assessment_id)?.due_date || s.submitted_at) ? 'late' : 'on_time',
+                                late_duration: new Date(s.submitted_at) > new Date(assessments.find((a: any) => a.id === s.assessment_id)?.due_date || s.submitted_at)
+                                    ? Math.round((new Date(s.submitted_at).getTime() - new Date(assessments.find((a: any) => a.id === s.assessment_id)?.due_date || s.submitted_at).getTime()) / (1000 * 60))
+                                    : undefined,
+                            }))}
+                            studentName={userProfile.full_name || userProfile.email}
+                            studentEmail={userProfile.email}
+                            isLoading={isLoading}
+                        />
                     </TabsContent>
 
                     {/* Grades Tab */}
                     <TabsContent value="grades">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Award className="h-5 w-5 text-amber-500" />
-                                    My Grades
-                                </CardTitle>
-                                <CardDescription>
-                                    {grades.length} grades released
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {grades.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <Award className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                        <p className="text-gray-500">No grades released yet</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {grades.map((grade) => {
-                                            const percentage = Math.round((grade.score / grade.total_marks) * 100);
-                                            return (
-                                                <div key={grade.id} className="p-4 rounded-lg border bg-white">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <h4 className="font-medium">{grade.submission?.assessment?.title || 'Assessment'}</h4>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={
-                                                                percentage >= 70
-                                                                    ? 'bg-green-50 text-green-700 border-green-200'
-                                                                    : percentage >= 50
-                                                                        ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                                                        : 'bg-red-50 text-red-700 border-red-200'
-                                                            }
-                                                        >
-                                                            {percentage}%
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                                                        <span>Score: {grade.score}/{grade.total_marks}</span>
-                                                        <span>•</span>
-                                                        <span>Graded: {new Date(grade.graded_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                    {grade.feedback && (
-                                                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                                                            <p className="text-sm text-gray-600">
-                                                                <span className="font-medium">Feedback:</span> {grade.feedback}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                    <Progress value={percentage} className="mt-3 h-2" />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <CourseGradesDashboard
+                            courseId={courseId}
+                            courseCode={course.code}
+                            courseTitle={course.title}
+                            grades={grades.map((g: any) => ({
+                                id: g.id,
+                                assessment_id: g.submission?.assessment_id || g.assessment_id,
+                                assessment_title: g.submission?.assessment?.title || assessments.find((a: any) => a.id === g.submission?.assessment_id)?.title || 'Assessment',
+                                assessment_type: g.submission?.assessment?.assessment_type || 'assignment',
+                                score: g.score,
+                                total_marks: g.total_marks,
+                                percentage: Math.round((g.score / g.total_marks) * 100),
+                                feedback: g.feedback,
+                                graded_at: g.graded_at,
+                                is_released: g.is_released !== false,
+                            }))}
+                            isLoading={isLoading}
+                        />
                     </TabsContent>
                 </Tabs>
             </main>
