@@ -12,7 +12,9 @@ import {
     getCourseMaterials,
     getAssessments,
     getStudentSubmissions,
-    getStudentGrades
+    getStudentGrades,
+    getInstructorCourses,
+    getEnrolledCourses
 } from '@/lib/supabase-helpers';
 
 interface CourseOverviewProps {
@@ -107,17 +109,15 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
 
                 setCourses(coursesWithStats);
             } else {
-                // For instructors/admins - fetch all courses or their courses
-                const allCourses = await getCourses();
+                // For instructors - fetch their assigned courses, for admins - fetch all
+                const roleCourses = role === 'instructor'
+                    ? await getInstructorCourses(userProfile.id)
+                    : await getCourses();
                 const allAssessments = await getAssessments();
-
-                const instructorCourses = role === 'instructor'
-                    ? (allCourses || []).filter((c: any) => c.instructor_id === userProfile.id || c.created_by === userProfile.id)
-                    : allCourses || [];
 
                 const coursesWithStats: CourseWithStats[] = [];
 
-                for (const course of instructorCourses as any[]) {
+                for (const course of (roleCourses || []) as any[]) {
                     const materials = await getCourseMaterials(course.id);
                     const courseAssessments = (allAssessments || []).filter(
                         (a: any) => a.course_id === course.id

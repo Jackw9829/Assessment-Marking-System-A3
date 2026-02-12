@@ -18,6 +18,7 @@ import { CourseOverview } from './course-overview';
 import { InstructorCourseDetail } from './instructor-course-detail';
 import {
   getCourses,
+  getInstructorCourses,
   uploadMaterial,
   getCourseMaterials,
   createCourse,
@@ -133,8 +134,8 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
   const fetchData = async () => {
     try {
-      // Fetch courses
-      const coursesData = await getCourses();
+      // Fetch courses assigned to this instructor (role-based access)
+      const coursesData = await getInstructorCourses(userProfile.id);
       const coursesArray = Array.isArray(coursesData) ? coursesData : [];
       setCourses(coursesArray);
 
@@ -530,7 +531,8 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
     const dueDate = new Date(s.assessment?.due_date);
     return submittedAt > dueDate;
   });
-  const myCourses = courses.filter(c => c.instructor_id === userProfile.id || c.created_by === userProfile.id);
+  // Courses are already filtered by getInstructorCourses based on instructor_id or created_by
+  const myCourses = courses;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">

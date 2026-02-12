@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial } from '@/lib/supabase-helpers';
+import { getStudentEnrollments, getCourseMaterials, getEnrolledCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial } from '@/lib/supabase-helpers';
 import { NotificationCenter, UpcomingDeadlinesWidget } from './notification-center';
 import { AssessmentFilter } from './assessment-filter';
 import { StudentCalendar } from './student-calendar';
@@ -224,9 +224,9 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
   const fetchData = async () => {
     try {
-      // Fetch all available courses (for discovery)
-      const allCourses = await getCourses();
-      setCourses(allCourses || []);
+      // Fetch enrolled courses for this student (role-based access)
+      const studentCourses = await getEnrolledCourses(userProfile.id);
+      setCourses(studentCourses || []);
 
       // Fetch enrolled courses (for submissions/assessments)
       const enrollments = await getStudentEnrollments(userProfile.id);

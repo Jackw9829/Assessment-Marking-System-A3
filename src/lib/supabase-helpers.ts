@@ -94,7 +94,7 @@ export async function createCourse(
 }
 
 /**
- * Get all courses
+ * Get all courses (Admin only - returns all courses)
  */
 export async function getCourses() {
     const { data, error } = await supabase
@@ -108,6 +108,64 @@ export async function getCourses() {
 
     if (error) throw error;
     return data;
+}
+
+/**
+ * Get courses for a specific instructor (Instructor role)
+ * Returns courses where the instructor is assigned or created the course
+ */
+export async function getInstructorCourses(instructorId: string) {
+    const { data, error } = await supabase
+        .from('courses')
+        .select(`
+      *,
+      instructor:instructor_id(id, full_name, email),
+      creator:created_by(id, full_name, email)
+    `)
+        .or(`instructor_id.eq.${instructorId},created_by.eq.${instructorId}`)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Get enrolled courses for a student (Student role)
+ * Returns only courses the student is enrolled in
+ */
+export async function getEnrolledCourses(studentId: string) {
+    const { data, error } = await supabase
+        .from('course_enrollments')
+        .select(`
+      course:course_id(
+        *,
+        instructor:instructor_id(id, full_name, email),
+        creator:created_by(id, full_name, email)
+      )
+    `)
+        .eq('student_id', studentId)
+        .order('enrolled_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Extract courses from enrollments
+    return (data || []).map(enrollment => enrollment.course).filter(Boolean);
+}
+
+/**
+ * Get courses based on user role
+ * Unified function that returns appropriate courses based on role
+ */
+export async function getCoursesByRole(userId: string, role: 'student' | 'instructor' | 'admin') {
+    switch (role) {
+        case 'student':
+            return getEnrolledCourses(userId);
+        case 'instructor':
+            return getInstructorCourses(userId);
+        case 'admin':
+        default:
+            return getCourses();
+    }
 }
 
 /**
