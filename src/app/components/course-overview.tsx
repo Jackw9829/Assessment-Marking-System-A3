@@ -28,13 +28,11 @@ import {
 import { CourseCard } from './course-card';
 import {
     getCourses,
-    getStudentEnrollments,
     getCourseMaterials,
     getAssessments,
     getStudentSubmissions,
     getStudentGrades,
     getInstructorCourses,
-    getEnrolledCourses
 } from '@/lib/supabase-helpers';
 
 interface CourseOverviewProps {
@@ -98,16 +96,20 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
         setIsLoading(true);
         try {
             if (role === 'student') {
-                // Fetch ALL enrolled courses for students - no limits
-                const enrollments = await getStudentEnrollments(userProfile.id);
+                // Fetch ALL published/active courses - no enrollment required
+                const allCourses = await getCourses();
                 const submissions = await getStudentSubmissions(userProfile.id);
                 const grades = await getStudentGrades(userProfile.id);
                 const allAssessments = await getAssessments();
 
                 const coursesWithStats: CourseWithStats[] = [];
 
-                for (const enrollment of (enrollments || []) as any[]) {
-                    const course = enrollment.course as any;
+                // Filter to only published/active courses (hide draft/archived)
+                const publishedCourses = (allCourses || []).filter((course: any) =>
+                    course.status === 'published' || course.status === 'active' || !course.status
+                );
+
+                for (const course of publishedCourses as any[]) {
                     if (!course) continue;
 
                     // Get materials for this course
@@ -140,8 +142,8 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
                         )
                         : 0;
 
-                    // Determine status based on progress
-                    const status: 'active' | 'completed' = progress === 100 ? 'completed' : 'active';
+                    // Determine display status based on progress
+                    const displayStatus: 'active' | 'completed' = progress === 100 ? 'completed' : 'active';
 
                     coursesWithStats.push({
                         id: course.id,
@@ -150,9 +152,9 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
                         description: course.description,
                         instructor: course.instructor,
                         image_url: course.image_url,
-                        created_at: enrollment.enrolled_at || course.created_at,
+                        created_at: course.created_at,
                         updated_at: course.updated_at,
-                        status,
+                        status: displayStatus,
                         stats: {
                             materialsCount: materials?.length || 0,
                             assessmentsCount: courseAssessments.length,
@@ -580,10 +582,10 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
                                             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                                 <div
                                                     className={`h-full rounded-full transition-all ${course.stats.progress === 100
-                                                            ? 'bg-green-500'
-                                                            : course.stats.progress >= 50
-                                                                ? 'bg-blue-500'
-                                                                : 'bg-orange-500'
+                                                        ? 'bg-green-500'
+                                                        : course.stats.progress >= 50
+                                                            ? 'bg-blue-500'
+                                                            : 'bg-orange-500'
                                                         }`}
                                                     style={{ width: `${course.stats.progress}%` }}
                                                 />
