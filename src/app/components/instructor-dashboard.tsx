@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings, Eye, Loader2, MessageSquare, UserCircle, Users, BookOpen, ClipboardList, AlertCircle, Clock, TrendingUp, CheckCircle2, AlertTriangle, ChevronRight, GraduationCap } from 'lucide-react';
+import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings, Eye, Loader2, MessageSquare, UserCircle, Users, BookOpen, ClipboardList, AlertCircle, Clock, TrendingUp, CheckCircle2, AlertTriangle, ChevronRight, GraduationCap, LayoutGrid } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -14,6 +14,8 @@ import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { DocumentPreview } from './document-preview';
 import { VisuallyHidden } from './ui/visually-hidden';
+import { CourseOverview } from './course-overview';
+import { InstructorCourseDetail } from './instructor-course-detail';
 import {
   getCourses,
   uploadMaterial,
@@ -95,7 +97,35 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const [allComponentsGraded, setAllComponentsGraded] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState('grading');
+  const [activeTab, setActiveTab] = useState('courses');
+
+  // Course detail state
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [showCourseDetail, setShowCourseDetail] = useState(false);
+
+  // Handle course selection
+  const handleCourseSelect = (courseId: string) => {
+    const course = courses.find(c => c.id === courseId);
+    if (course) {
+      setSelectedCourse(course);
+      setShowCourseDetail(true);
+    }
+  };
+
+  const handleBackToCourses = () => {
+    setShowCourseDetail(false);
+    setSelectedCourse(null);
+  };
+
+  // Handle opening grading from course detail
+  const handleOpenGradingFromCourse = (submission: any) => {
+    handleOpenRubricGrading(submission);
+  };
+
+  // Handle opening rubric from course detail
+  const handleOpenRubricFromCourse = (assessment: any) => {
+    handleOpenRubricDialog(assessment);
+  };
 
   useEffect(() => {
     fetchData();
@@ -674,8 +704,8 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             Upload Material
           </Button>
           <Button variant="outline" onClick={() => setActiveTab('courses')}>
-            <BookOpen className="h-4 w-4 mr-2" />
-            New Course
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            My Courses
           </Button>
           {pendingSubmissions.length > 0 && (
             <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => setActiveTab('grading')}>
@@ -697,8 +727,8 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
               )}
             </TabsTrigger>
             <TabsTrigger value="courses" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
-              <BookOpen className="h-4 w-4 mr-1" />
-              Courses
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              My Courses
             </TabsTrigger>
             <TabsTrigger value="materials" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
               <FileText className="h-4 w-4 mr-1" />
@@ -714,65 +744,62 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             </TabsTrigger>
           </TabsList>
 
+          {/* Courses Tab - Modern LMS-style Course Overview */}
           <TabsContent value="courses" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Course</CardTitle>
-                <CardDescription>Add a new course to the system</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Course Name</Label>
-                  <Input
-                    placeholder="e.g., Business Strategy 101"
-                    value={courseName}
-                    onChange={(e) => setCourseName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Course Description</Label>
-                  <Textarea
-                    placeholder="Describe the course..."
-                    value={courseDesc}
-                    onChange={(e) => setCourseDesc(e.target.value)}
-                  />
-                </div>
-                <Button
-                  onClick={handleCreateCourse}
-                  disabled={isCreatingCourse}
-                  className="w-full"
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  {isCreatingCourse ? 'Creating...' : 'Create Course'}
-                </Button>
-              </CardContent>
-            </Card>
+            {showCourseDetail && selectedCourse ? (
+              <InstructorCourseDetail
+                courseId={selectedCourse.id}
+                course={selectedCourse}
+                userProfile={userProfile}
+                onBack={handleBackToCourses}
+                onOpenGrading={handleOpenGradingFromCourse}
+                onOpenRubric={handleOpenRubricFromCourse}
+              />
+            ) : (
+              <>
+                <CourseOverview
+                  userProfile={userProfile}
+                  role="instructor"
+                  onCourseSelect={handleCourseSelect}
+                  onCreateCourse={() => { }}
+                />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>My Courses</CardTitle>
-                <CardDescription>Courses you've created</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {courses.filter(c => c.instructor_id === userProfile.id || c.created_by === userProfile.id).length === 0 ? (
-                    <p className="text-sm text-gray-500">No courses created yet. Create your first course above!</p>
-                  ) : (
-                    courses
-                      .filter(c => c.instructor_id === userProfile.id || c.created_by === userProfile.id)
-                      .map((course) => (
-                        <div key={course.id} className="p-4 border rounded-lg">
-                          <h3 className="font-medium">{course.title} ({course.code})</h3>
-                          <p className="text-sm text-gray-600 mt-1">{course.description}</p>
-                          <p className="text-xs text-gray-500 mt-2">
-                            Created {new Date(course.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                {/* Create Course Card */}
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>Create New Course</CardTitle>
+                    <CardDescription>Add a new course to the system</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Course Name</Label>
+                        <Input
+                          placeholder="e.g., Business Strategy 101"
+                          value={courseName}
+                          onChange={(e) => setCourseName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Course Description</Label>
+                        <Input
+                          placeholder="Describe the course..."
+                          value={courseDesc}
+                          onChange={(e) => setCourseDesc(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleCreateCourse}
+                      disabled={isCreatingCourse}
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      {isCreatingCourse ? 'Creating...' : 'Create Course'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="materials" className="space-y-4">

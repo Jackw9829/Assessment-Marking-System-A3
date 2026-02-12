@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
-import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History, GraduationCap, UserCircle, Clock, AlertTriangle, CheckCircle2, BookOpen, TrendingUp, Send, Eye, ChevronRight, AlertCircle } from 'lucide-react';
+import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History, GraduationCap, UserCircle, Clock, AlertTriangle, CheckCircle2, BookOpen, TrendingUp, Send, Eye, ChevronRight, AlertCircle, LayoutGrid } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
@@ -18,6 +18,8 @@ import { SubmissionHistory } from './submission-history';
 import { InterimTranscript } from './interim-transcript';
 import { AIChatbot } from './ai-chatbot';
 import { StudentProfile } from './student-profile';
+import { CourseOverview } from './course-overview';
+import { StudentCourseDetail } from './student-course-detail';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -38,6 +40,24 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Course detail state
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [showCourseDetail, setShowCourseDetail] = useState(false);
+
+  // Handle course selection
+  const handleCourseSelect = (courseId: string) => {
+    const course = enrolledCourses.find(e => e.course?.id === courseId)?.course;
+    if (course) {
+      setSelectedCourse(course);
+      setShowCourseDetail(true);
+    }
+  };
+
+  const handleBackToCourses = () => {
+    setShowCourseDetail(false);
+    setSelectedCourse(null);
+  };
 
   // Handle chatbot navigation
   const handleChatbotNavigate = (tab: string) => {
@@ -355,7 +375,11 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
 
         {/* Quick Actions Section */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <Button onClick={() => setActiveTab('assessments')} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => setActiveTab('courses')} className="bg-blue-600 hover:bg-blue-700">
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            My Courses
+          </Button>
+          <Button variant="outline" onClick={() => setActiveTab('assessments')}>
             <Send className="h-4 w-4 mr-2" />
             Submit Assessment
           </Button>
@@ -378,6 +402,10 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
             <TabsTrigger value="overview" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               <Eye className="h-4 w-4 mr-1" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="courses" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              My Courses
             </TabsTrigger>
             <TabsTrigger value="materials" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               <FileText className="h-4 w-4 mr-1" />
@@ -495,6 +523,24 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Courses Tab - Modern LMS-style Course Overview */}
+          <TabsContent value="courses" className="space-y-4">
+            {showCourseDetail && selectedCourse ? (
+              <StudentCourseDetail
+                courseId={selectedCourse.id}
+                course={selectedCourse}
+                userProfile={userProfile}
+                onBack={handleBackToCourses}
+              />
+            ) : (
+              <CourseOverview
+                userProfile={userProfile}
+                role="student"
+                onCourseSelect={handleCourseSelect}
+              />
+            )}
           </TabsContent>
 
           {/* Calendar Tab */}
