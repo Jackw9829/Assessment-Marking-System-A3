@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings, Eye, Loader2, MessageSquare } from 'lucide-react';
+import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings, Eye, Loader2, MessageSquare, UserCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -36,6 +36,7 @@ import {
   RubricComponent,
   RubricScore
 } from '../../lib/supabase-helpers';
+import { InstructorProfile } from './instructor-profile';
 
 interface InstructorDashboardProps {
   accessToken: string;
@@ -557,6 +558,10 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="profile">
+              <UserCircle className="h-4 w-4 mr-1" />
+              My Profile
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="courses" className="space-y-4">
@@ -967,6 +972,11 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-4">
+            <InstructorProfile userId={userProfile.id} />
+          </TabsContent>
         </Tabs>
 
         {/* Rubric Management Dialog */}
@@ -1354,6 +1364,11 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Profile Tab Content — rendered outside the Grading Dialog */}
+        <div className="mt-0">
+          {/* This tab content is managed by the Tabs component above */}
+        </div>
       </main>
     </div>
   );

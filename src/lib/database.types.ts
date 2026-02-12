@@ -26,6 +26,18 @@ export interface Database {
                     email: string
                     full_name: string | null
                     role: UserRole
+                    phone: string | null
+                    avatar_url: string | null
+                    programme: string | null
+                    intake: string | null
+                    department: string | null
+                    staff_id: string | null
+                    student_id: string | null
+                    role_designation: string | null
+                    bio: string | null
+                    two_factor_enabled: boolean
+                    email_verified: boolean
+                    last_login_at: string | null
                     created_at: string
                     updated_at: string
                 }
@@ -34,6 +46,18 @@ export interface Database {
                     email: string
                     full_name?: string | null
                     role?: UserRole
+                    phone?: string | null
+                    avatar_url?: string | null
+                    programme?: string | null
+                    intake?: string | null
+                    department?: string | null
+                    staff_id?: string | null
+                    student_id?: string | null
+                    role_designation?: string | null
+                    bio?: string | null
+                    two_factor_enabled?: boolean
+                    email_verified?: boolean
+                    last_login_at?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -42,6 +66,18 @@ export interface Database {
                     email?: string
                     full_name?: string | null
                     role?: UserRole
+                    phone?: string | null
+                    avatar_url?: string | null
+                    programme?: string | null
+                    intake?: string | null
+                    department?: string | null
+                    staff_id?: string | null
+                    student_id?: string | null
+                    role_designation?: string | null
+                    bio?: string | null
+                    two_factor_enabled?: boolean
+                    email_verified?: boolean
+                    last_login_at?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -409,6 +445,12 @@ export interface Database {
                     quiet_hours_start: string | null
                     quiet_hours_end: string | null
                     timezone: string
+                    email_reminders: boolean
+                    deadline_alerts: boolean
+                    grade_notifications: boolean
+                    announcement_notifications: boolean
+                    system_notifications: boolean
+                    digest_frequency: string
                     created_at: string
                     updated_at: string
                 }
@@ -424,6 +466,12 @@ export interface Database {
                     quiet_hours_start?: string | null
                     quiet_hours_end?: string | null
                     timezone?: string
+                    email_reminders?: boolean
+                    deadline_alerts?: boolean
+                    grade_notifications?: boolean
+                    announcement_notifications?: boolean
+                    system_notifications?: boolean
+                    digest_frequency?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -439,6 +487,12 @@ export interface Database {
                     quiet_hours_start?: string | null
                     quiet_hours_end?: string | null
                     timezone?: string
+                    email_reminders?: boolean
+                    deadline_alerts?: boolean
+                    grade_notifications?: boolean
+                    announcement_notifications?: boolean
+                    system_notifications?: boolean
+                    digest_frequency?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -593,6 +647,41 @@ export interface Database {
                     error_message?: string | null
                     created_at?: string
                     scheduled_for?: string
+                }
+            }
+            profile_audit_log: {
+                Row: {
+                    id: string
+                    user_id: string
+                    action: string
+                    field_changed: string | null
+                    old_value: string | null
+                    new_value: string | null
+                    ip_address: string | null
+                    user_agent: string | null
+                    performed_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    action: string
+                    field_changed?: string | null
+                    old_value?: string | null
+                    new_value?: string | null
+                    ip_address?: string | null
+                    user_agent?: string | null
+                    performed_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    action?: string
+                    field_changed?: string | null
+                    old_value?: string | null
+                    new_value?: string | null
+                    ip_address?: string | null
+                    user_agent?: string | null
+                    performed_at?: string
                 }
             }
         }

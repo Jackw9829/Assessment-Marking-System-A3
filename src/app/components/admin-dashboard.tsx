@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { LogOut, PlusCircle, CheckCircle, XCircle, Users, BookOpen, FileCheck } from 'lucide-react';
+import { LogOut, PlusCircle, CheckCircle, XCircle, Users, BookOpen, FileCheck, UserCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -12,6 +12,7 @@ import { Textarea } from './ui/textarea';
 import { getCourses, createCourse, getProfiles, getPendingVerificationGrades, getVerifiedGrades, verifyGrade, getAllAssessments, getAllSubmissions } from '@/lib/supabase-helpers';
 import { Separator } from './ui/separator';
 import { Progress } from './ui/progress';
+import { AdminProfile } from './admin-profile';
 
 interface AdminDashboardProps {
   accessToken: string;
@@ -203,6 +204,10 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
             </TabsTrigger>
             <TabsTrigger value="courses">Course Management</TabsTrigger>
             <TabsTrigger value="reports">System Reports</TabsTrigger>
+            <TabsTrigger value="profile">
+              <UserCircle className="h-4 w-4 mr-1" />
+              My Profile
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="verification" className="space-y-4">
@@ -441,6 +446,11 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-4">
+            <AdminProfile userId={userProfile.id} />
           </TabsContent>
         </Tabs>
       </main>

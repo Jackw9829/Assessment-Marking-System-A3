@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
-import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History, GraduationCap } from 'lucide-react';
+import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History, GraduationCap, UserCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
@@ -17,6 +17,7 @@ import { GradesDashboard } from './grades-dashboard';
 import { SubmissionHistory } from './submission-history';
 import { InterimTranscript } from './interim-transcript';
 import { AIChatbot } from './ai-chatbot';
+import { StudentProfile } from './student-profile';
 
 interface StudentDashboardProps {
   accessToken: string;
@@ -244,6 +245,10 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
             </TabsTrigger>
             <TabsTrigger value="grades">Grades</TabsTrigger>
             <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
+            <TabsTrigger value="profile">
+              <UserCircle className="h-4 w-4 mr-1" />
+              My Profile
+            </TabsTrigger>
           </TabsList>
 
           {/* Calendar Tab */}
@@ -478,12 +483,19 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
         </Tabs>
       </main>
 
-      {/* AI Chatbot */}
-      <AIChatbot
-        studentId={userProfile.id}
-        studentName={userProfile.name}
-        onNavigate={handleChatbotNavigate}
-      />
-    </div>
+      {/* Profile Tab */}
+      <TabsContent value="profile" className="space-y-4">
+        <StudentProfile userId={userProfile.id} />
+      </TabsContent>
+    </Tabs>
+      </main >
+
+    {/* AI Chatbot */ }
+    < AIChatbot
+  studentId = { userProfile.id }
+  studentName = { userProfile.name }
+  onNavigate = { handleChatbotNavigate }
+    />
+    </div >
   );
 }
