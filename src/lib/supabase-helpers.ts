@@ -112,7 +112,7 @@ export async function getCourses() {
 
 /**
  * Get courses for a specific instructor (Instructor role)
- * Returns courses where the instructor is assigned or created the course
+ * Returns only courses created by the instructor (created_by = instructor_id)
  */
 export async function getInstructorCourses(instructorId: string) {
     const { data, error } = await supabase
@@ -122,7 +122,7 @@ export async function getInstructorCourses(instructorId: string) {
       instructor:instructor_id(id, full_name, email),
       creator:created_by(id, full_name, email)
     `)
-        .or(`instructor_id.eq.${instructorId},created_by.eq.${instructorId}`)
+        .eq('created_by', instructorId)
         .order('created_at', { ascending: false });
 
     if (error) throw error;

@@ -40,6 +40,7 @@ interface CourseOverviewProps {
     role: 'student' | 'instructor' | 'admin';
     onCourseSelect: (courseId: string) => void;
     onCreateCourse?: () => void;
+    refreshTrigger?: number;  // Increment to trigger course list refresh
 }
 
 interface CourseWithStats {
@@ -68,7 +69,7 @@ type StatusFilter = 'all' | 'active' | 'completed' | 'archived' | 'draft' | 'pub
 
 const ITEMS_PER_PAGE = 12;
 
-export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCourse }: CourseOverviewProps) {
+export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCourse, refreshTrigger }: CourseOverviewProps) {
     const [courses, setCourses] = useState<CourseWithStats[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -85,7 +86,7 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
 
     useEffect(() => {
         fetchCourses();
-    }, [userProfile.id, role]);
+    }, [userProfile.id, role, refreshTrigger]);
 
     // Reset to page 1 when filters change
     useEffect(() => {
