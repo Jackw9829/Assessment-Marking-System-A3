@@ -379,10 +379,6 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
             <LayoutGrid className="h-4 w-4 mr-2" />
             My Courses
           </Button>
-          <Button variant="outline" onClick={() => setActiveTab('assessments')}>
-            <Send className="h-4 w-4 mr-2" />
-            Submit Assessment
-          </Button>
           <Button variant="outline" onClick={() => setActiveTab('grades')}>
             <Award className="h-4 w-4 mr-2" />
             View Grades
@@ -407,41 +403,17 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
               <LayoutGrid className="h-4 w-4 mr-1" />
               My Courses
             </TabsTrigger>
-            <TabsTrigger value="materials" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <FileText className="h-4 w-4 mr-1" />
-              Materials
-            </TabsTrigger>
-            <TabsTrigger value="assessments" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <Upload className="h-4 w-4 mr-1" />
-              Assessments
-            </TabsTrigger>
             <TabsTrigger value="calendar" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               <Calendar className="h-4 w-4 mr-1" />
               Calendar
-            </TabsTrigger>
-            <TabsTrigger value="filter" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <Filter className="h-4 w-4 mr-1" />
-              Filter
-            </TabsTrigger>
-            <TabsTrigger value="submission-history" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <History className="h-4 w-4 mr-1" />
-              Submissions
-            </TabsTrigger>
-            <TabsTrigger value="grades-dashboard" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <BarChart3 className="h-4 w-4 mr-1" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="transcript" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <GraduationCap className="h-4 w-4 mr-1" />
-              Transcript
             </TabsTrigger>
             <TabsTrigger value="grades" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               <Award className="h-4 w-4 mr-1" />
               Grades
             </TabsTrigger>
-            <TabsTrigger value="deadlines" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <Clock className="h-4 w-4 mr-1" />
-              Deadlines
+            <TabsTrigger value="transcript" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              <GraduationCap className="h-4 w-4 mr-1" />
+              Transcript
             </TabsTrigger>
             <TabsTrigger value="profile" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               <UserCircle className="h-4 w-4 mr-1" />
