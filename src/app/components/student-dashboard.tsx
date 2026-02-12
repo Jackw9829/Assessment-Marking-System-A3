@@ -480,22 +480,20 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-4">
+            <StudentProfile userId={userProfile.id} />
+          </TabsContent>
         </Tabs>
       </main>
 
-      {/* Profile Tab */}
-      <TabsContent value="profile" className="space-y-4">
-        <StudentProfile userId={userProfile.id} />
-      </TabsContent>
-    </Tabs>
-      </main >
-
-    {/* AI Chatbot */ }
-    < AIChatbot
-  studentId = { userProfile.id }
-  studentName = { userProfile.name }
-  onNavigate = { handleChatbotNavigate }
-    />
-    </div >
+      {/* AI Chatbot */}
+      <AIChatbot
+        studentId={userProfile.id}
+        studentName={userProfile.name}
+        onNavigate={handleChatbotNavigate}
+      />
+    </div>
   );
 }
