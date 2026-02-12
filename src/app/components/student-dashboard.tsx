@@ -95,6 +95,56 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
     return { level: 'normal', label: `${diffDays} days left`, color: 'bg-gray-100 text-gray-800 border-gray-200' };
   };
 
+  // Helper to get submission info for an assessment
+  const getSubmissionInfo = (assessmentId: string) => {
+    const submission = submissions.find(s => s.assessment_id === assessmentId);
+    return {
+      isSubmitted: !!submission,
+      submission,
+    };
+  };
+
+  // Get assessments available for submission (not submitted, or resubmission allowed)
+  const getSubmittableAssessments = () => {
+    return assessments
+      .filter(a => {
+        const { isSubmitted } = getSubmissionInfo(a.id);
+        const resubmissionAllowed = a.resubmission_allowed === true;
+        const now = new Date();
+        const dueDate = new Date(a.due_date);
+        const isPastDue = dueDate < now;
+
+        // If not submitted, it's submittable (unless past due for non-resubmission)
+        if (!isSubmitted) {
+          return true; // Show even overdue for students to see the status
+        }
+
+        // If submitted but resubmission is allowed and not past due
+        if (isSubmitted && resubmissionAllowed && !isPastDue) {
+          return true;
+        }
+
+        return false;
+      })
+      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+  };
+
+  // Check if all assessments have been submitted (no pending submissions)
+  const allAssessmentsSubmitted = useMemo(() => {
+    if (assessments.length === 0) return false;
+
+    return assessments.every(a => {
+      const { isSubmitted } = getSubmissionInfo(a.id);
+      const resubmissionAllowed = a.resubmission_allowed === true;
+      const now = new Date();
+      const dueDate = new Date(a.due_date);
+      const isPastDue = dueDate < now;
+
+      // Considered "fully submitted" if submitted AND (no resubmission allowed OR past due)
+      return isSubmitted && (!resubmissionAllowed || isPastDue);
+    });
+  }, [assessments, submissions]);
+
   const getUrgentAssessments = () => {
     return assessments
       .filter(a => {
@@ -679,50 +729,99 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                 <CardDescription>Upload your completed assessment</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Select Assessment</Label>
-                  <select
-                    className="w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    value={selectedAssessment}
-                    onChange={(e) => setSelectedAssessment(e.target.value)}
-                  >
-                    <option value="">Choose an assessment...</option>
-                    {assessments.map((assessment) => {
-                      const urgency = getAssessmentUrgency(assessment.due_date, assessment.id);
-                      return (
-                        <option key={assessment.id} value={assessment.id}>
-                          {urgency.level === 'overdue' ? '🔴 ' : urgency.level === 'urgent' ? '🟠 ' : urgency.level === 'soon' ? '🟡 ' : ''}
-                          {assessment.title} (Due: {new Date(assessment.due_date).toLocaleDateString()})
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Upload File</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                    <input
-                      type="file"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      className="w-full"
-                    />
-                    {selectedFile && (
-                      <p className="text-sm text-blue-600 mt-2 flex items-center justify-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        {selectedFile.name}
-                      </p>
-                    )}
+                {/* Show message if all assessments are submitted */}
+                {allAssessmentsSubmitted ? (
+                  <div className="text-center py-8 bg-green-50 rounded-lg border border-green-200">
+                    <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle2 className="h-8 w-8 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-green-800 mb-2">All Assessments Submitted</h3>
+                    <p className="text-sm text-green-700">
+                      Great work! You have submitted all available assessments.
+                    </p>
+                    <p className="text-xs text-green-600 mt-2">
+                      Check the "My Grades" tab to view your results.
+                    </p>
                   </div>
-                </div>
-                <Button
-                  onClick={handleSubmitAssessment}
-                  disabled={isSubmitting || !selectedFile || !selectedAssessment}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  size="lg"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isSubmitting ? 'Submitting...' : 'Submit Assessment'}
-                </Button>
+                ) : getSubmittableAssessments().length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                    <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">No assessments available for submission.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Select Assessment</Label>
+                      <select
+                        className="w-full p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        value={selectedAssessment}
+                        onChange={(e) => setSelectedAssessment(e.target.value)}
+                      >
+                        <option value="">Choose an assessment...</option>
+                        {getSubmittableAssessments().map((assessment) => {
+                          const urgency = getAssessmentUrgency(assessment.due_date, assessment.id);
+                          const { isSubmitted } = getSubmissionInfo(assessment.id);
+                          const isResubmission = isSubmitted && assessment.resubmission_allowed;
+
+                          return (
+                            <option key={assessment.id} value={assessment.id}>
+                              {isResubmission ? '🔄 ' : ''}
+                              {urgency.level === 'overdue' ? '🔴 ' : urgency.level === 'urgent' ? '🟠 ' : urgency.level === 'soon' ? '🟡 ' : ''}
+                              {assessment.title}
+                              {isResubmission ? ' [Resubmission]' : ''}
+                              (Due: {new Date(assessment.due_date).toLocaleDateString()})
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      {/* Show resubmission info when a resubmission assessment is selected */}
+                      {selectedAssessment && (() => {
+                        const selected = assessments.find(a => a.id === selectedAssessment);
+                        const { isSubmitted } = getSubmissionInfo(selectedAssessment);
+                        if (selected && isSubmitted && selected.resubmission_allowed) {
+                          return (
+                            <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <div className="flex items-center gap-2 text-amber-800">
+                                <AlertTriangle className="h-4 w-4" />
+                                <span className="text-sm font-medium">Resubmission</span>
+                              </div>
+                              <p className="text-xs text-amber-700 mt-1">
+                                You have already submitted this assessment. Uploading a new file will replace your previous submission.
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Upload File</Label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                        <input
+                          type="file"
+                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                          className="w-full"
+                        />
+                        {selectedFile && (
+                          <p className="text-sm text-blue-600 mt-2 flex items-center justify-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            {selectedFile.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleSubmitAssessment}
+                      disabled={isSubmitting || !selectedFile || !selectedAssessment}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      size="lg"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {isSubmitting ? 'Submitting...' : 'Submit Assessment'}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -741,11 +840,26 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                   ) : (
                     assessments.map((assessment) => {
                       const urgency = getAssessmentUrgency(assessment.due_date, assessment.id);
+                      const { isSubmitted } = getSubmissionInfo(assessment.id);
+                      const resubmissionAllowed = assessment.resubmission_allowed === true;
+                      const now = new Date();
+                      const dueDate = new Date(assessment.due_date);
+                      const isPastDue = dueDate < now;
+                      const canResubmit = isSubmitted && resubmissionAllowed && !isPastDue;
+                      const canSubmit = !isSubmitted || canResubmit;
+
                       return (
-                        <div key={assessment.id} className={`p-4 border rounded-lg hover:shadow-md transition-all ${urgency.level !== 'completed' && urgency.level !== 'normal' ? 'border-l-4' : ''} ${urgency.level === 'overdue' ? 'border-l-red-500 bg-red-50/50' : urgency.level === 'urgent' ? 'border-l-orange-500 bg-orange-50/50' : urgency.level === 'soon' ? 'border-l-yellow-500 bg-yellow-50/50' : ''}`}>
+                        <div key={assessment.id} className={`p-4 border rounded-lg hover:shadow-md transition-all ${urgency.level !== 'completed' && urgency.level !== 'normal' ? 'border-l-4' : ''} ${urgency.level === 'overdue' ? 'border-l-red-500 bg-red-50/50' : urgency.level === 'urgent' ? 'border-l-orange-500 bg-orange-50/50' : urgency.level === 'soon' ? 'border-l-yellow-500 bg-yellow-50/50' : urgency.level === 'completed' ? 'border-l-green-500 bg-green-50/50' : ''}`}>
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900">{assessment.title}</h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-900">{assessment.title}</h3>
+                                {resubmissionAllowed && (
+                                  <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                    Resubmission Allowed
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-sm text-gray-600 mt-1">{assessment.description}</p>
                             </div>
                             <div className="flex flex-col items-end gap-2">
@@ -758,13 +872,13 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
                               <Calendar className="h-4 w-4" />
                               Due: {new Date(assessment.due_date).toLocaleDateString()}
                             </span>
-                            {urgency.level !== 'completed' && (
+                            {canSubmit && (
                               <Button size="sm" onClick={() => {
                                 setSelectedAssessment(assessment.id);
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                               }}>
                                 <Send className="h-4 w-4 mr-1" />
-                                Submit Now
+                                {canResubmit ? 'Resubmit' : 'Submit Now'}
                               </Button>
                             )}
                           </div>

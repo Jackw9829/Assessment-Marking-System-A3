@@ -184,6 +184,8 @@ export interface Database {
                     due_date: string
                     total_marks: number
                     created_by: string
+                    resubmission_allowed: boolean
+                    max_resubmissions: number | null
                     created_at: string | null
                     updated_at: string | null
                 }
@@ -195,6 +197,8 @@ export interface Database {
                     due_date: string
                     total_marks?: number
                     created_by: string
+                    resubmission_allowed?: boolean
+                    max_resubmissions?: number | null
                     created_at?: string | null
                     updated_at?: string | null
                 }
@@ -206,6 +210,8 @@ export interface Database {
                     due_date?: string
                     total_marks?: number
                     created_by?: string
+                    resubmission_allowed?: boolean
+                    max_resubmissions?: number | null
                     created_at?: string | null
                     updated_at?: string | null
                 }
@@ -221,6 +227,8 @@ export interface Database {
                     file_type: string
                     submitted_at: string | null
                     status: SubmissionStatus | null
+                    version: number
+                    is_latest: boolean
                 }
                 Insert: {
                     id?: string
@@ -232,6 +240,8 @@ export interface Database {
                     file_type: string
                     submitted_at?: string | null
                     status?: SubmissionStatus | null
+                    version?: number
+                    is_latest?: boolean
                 }
                 Update: {
                     id?: string
@@ -243,6 +253,8 @@ export interface Database {
                     file_type?: string
                     submitted_at?: string | null
                     status?: SubmissionStatus | null
+                    version?: number
+                    is_latest?: boolean
                 }
             }
             grades: {
