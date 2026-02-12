@@ -51,7 +51,7 @@ interface CourseWithStats {
     image_url?: string;
     created_at?: string;
     updated_at?: string;
-    status?: 'active' | 'archived' | 'completed';
+    status?: 'active' | 'archived' | 'completed' | 'draft' | 'published';
     stats: {
         materialsCount: number;
         assessmentsCount: number;
@@ -64,7 +64,7 @@ interface CourseWithStats {
 }
 
 type SortField = 'name' | 'code' | 'newest' | 'progress' | 'assessments' | 'updated';
-type StatusFilter = 'all' | 'active' | 'completed' | 'archived';
+type StatusFilter = 'all' | 'active' | 'completed' | 'archived' | 'draft' | 'published';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -301,7 +301,7 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
                     </h2>
                     <p className="text-gray-500">
                         {role === 'student'
-                            ? `${courses.length} enrolled course${courses.length !== 1 ? 's' : ''}`
+                            ? `${courses.length} available course${courses.length !== 1 ? 's' : ''}`
                             : `${courses.length} course${courses.length !== 1 ? 's' : ''}`}
                         {filteredAndSortedCourses.length !== courses.length && (
                             <span className="text-blue-600"> • {filteredAndSortedCourses.length} shown</span>
@@ -381,7 +381,10 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-700">Status:</span>
                             <div className="flex gap-1">
-                                {(['all', 'active', role === 'student' ? 'completed' : 'archived'] as StatusFilter[]).map((status) => (
+                                {(role === 'student'
+                                    ? ['all', 'active', 'completed'] as StatusFilter[]
+                                    : ['all', 'draft', 'published', 'active', 'archived'] as StatusFilter[]
+                                ).map((status) => (
                                     <Button
                                         key={status}
                                         variant={statusFilter === status ? 'secondary' : 'ghost'}
@@ -390,6 +393,8 @@ export function CourseOverview({ userProfile, role, onCourseSelect, onCreateCour
                                         className="capitalize"
                                     >
                                         {status === 'all' && 'All'}
+                                        {status === 'draft' && <><Clock className="h-3 w-3 mr-1" /> Draft</>}
+                                        {status === 'published' && <><CheckCircle2 className="h-3 w-3 mr-1" /> Published</>}
                                         {status === 'active' && <><CheckCircle2 className="h-3 w-3 mr-1" /> Active</>}
                                         {status === 'completed' && <><TrendingUp className="h-3 w-3 mr-1" /> Completed</>}
                                         {status === 'archived' && <><Archive className="h-3 w-3 mr-1" /> Archived</>}

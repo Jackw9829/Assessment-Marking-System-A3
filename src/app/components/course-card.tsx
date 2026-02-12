@@ -2,7 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { BookOpen, FileText, ClipboardList, ChevronRight, Users, GraduationCap, CheckCircle2, Archive, TrendingUp } from 'lucide-react';
+import { BookOpen, FileText, ClipboardList, ChevronRight, Users, GraduationCap, CheckCircle2, Archive, TrendingUp, Clock, Send } from 'lucide-react';
 
 interface CourseCardProps {
     course: {
@@ -12,7 +12,7 @@ interface CourseCardProps {
         description?: string;
         instructor?: { name: string; full_name?: string };
         image_url?: string;
-        status?: 'active' | 'completed' | 'archived';
+        status?: 'active' | 'completed' | 'archived' | 'draft' | 'published';
     };
     role: 'student' | 'instructor' | 'admin';
     stats?: {
@@ -80,10 +80,22 @@ export function CourseCard({ course, role, stats, onClick }: CourseCardProps) {
                 </Badge>
 
                 {/* Status Badge */}
-                {course.status === 'completed' && (
+                {course.status === 'draft' && (
+                    <Badge className="absolute top-3 right-3 bg-yellow-500 text-white border-0">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Draft
+                    </Badge>
+                )}
+                {course.status === 'published' && (
+                    <Badge className="absolute top-3 right-3 bg-blue-500 text-white border-0">
+                        <Send className="h-3 w-3 mr-1" />
+                        Published
+                    </Badge>
+                )}
+                {(course.status === 'completed' || course.status === 'active') && (
                     <Badge className="absolute top-3 right-3 bg-green-500 text-white border-0">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Completed
+                        {course.status === 'completed' ? 'Completed' : 'Active'}
                     </Badge>
                 )}
                 {course.status === 'archived' && (
