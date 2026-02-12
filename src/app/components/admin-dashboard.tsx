@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { LogOut, PlusCircle, CheckCircle, XCircle, Users, BookOpen, FileCheck, UserCircle } from 'lucide-react';
+import { LogOut, PlusCircle, CheckCircle, XCircle, Users, BookOpen, FileCheck, UserCircle, Shield, AlertTriangle, Clock, TrendingUp, ClipboardCheck, BarChart3, Settings, AlertCircle, ChevronRight, GraduationCap, Activity } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -125,15 +125,20 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50">
+      {/* Enhanced Header */}
+      <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">EduConnect AMS - Exam Administrator</h1>
-            <p className="text-sm text-gray-600">Welcome, {userProfile.name}</p>
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-600 text-white p-2 rounded-lg">
+              <Shield className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">EduConnect AMS</h1>
+              <p className="text-sm text-gray-600">Exam Administrator • <span className="font-medium text-emerald-600">{userProfile.name}</span></p>
+            </div>
           </div>
-          <Button variant="outline" onClick={onLogout}>
+          <Button variant="outline" onClick={onLogout} className="border-gray-300 hover:bg-gray-50">
             <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
@@ -141,72 +146,222 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats */}
+      <main className="container mx-auto px-4 py-6">
+        {/* Enhanced System Statistics */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Total Courses
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalCourses}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+            <Card className="bg-white border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalCourses}</p>
+                    <p className="text-xs text-gray-500">Courses</p>
+                  </div>
+                  <div className="bg-blue-100 p-2 rounded-lg">
+                    <BookOpen className="h-5 w-5 text-blue-600" />
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <FileCheck className="h-4 w-4" />
-                  Total Assessments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalAssessments}</div>
+
+            <Card className="bg-white border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Active</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalAssessments}</p>
+                    <p className="text-xs text-gray-500">Assessments</p>
+                  </div>
+                  <div className="bg-purple-100 p-2 rounded-lg">
+                    <FileCheck className="h-5 w-5 text-purple-600" />
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Total Submissions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalSubmissions}</div>
+
+            <Card className="bg-white border-l-4 border-l-cyan-500 hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalSubmissions}</p>
+                    <p className="text-xs text-gray-500">Submissions</p>
+                  </div>
+                  <div className="bg-cyan-100 p-2 rounded-lg">
+                    <Users className="h-5 w-5 text-cyan-600" />
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Pending Verification
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{stats.pendingVerification}</div>
+
+            <Card className={`bg-white border-l-4 hover:shadow-md transition-shadow ${stats.pendingVerification > 0 ? 'border-l-orange-500' : 'border-l-green-500'}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pending</p>
+                    <p className={`text-2xl font-bold ${stats.pendingVerification > 0 ? 'text-orange-600' : 'text-green-600'}`}>{stats.pendingVerification}</p>
+                    <p className="text-xs text-gray-500">Verification</p>
+                  </div>
+                  <div className={`p-2 rounded-lg ${stats.pendingVerification > 0 ? 'bg-orange-100' : 'bg-green-100'}`}>
+                    {stats.pendingVerification > 0 ? <Clock className="h-5 w-5 text-orange-600" /> : <CheckCircle className="h-5 w-5 text-green-600" />}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Released</p>
+                    <p className="text-2xl font-bold text-emerald-600">{verifiedGrades.length}</p>
+                    <p className="text-xs text-gray-500">Grades</p>
+                  </div>
+                  <div className="bg-emerald-100 p-2 rounded-lg">
+                    <ClipboardCheck className="h-5 w-5 text-emerald-600" />
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
         )}
 
+        {/* Actions Requiring Attention Alert */}
+        {pendingGrades.length > 0 && (
+          <Card className="mb-6 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-lg text-orange-800">Actions Requiring Approval</CardTitle>
+                </div>
+                <Badge variant="destructive" className="animate-pulse">
+                  {pendingGrades.length} Pending
+                </Badge>
+              </div>
+              <CardDescription className="text-orange-700">
+                Grade verifications awaiting your review and official release
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {pendingGrades.slice(0, 3).map((grade: any) => {
+                  const percentage = Math.round((grade.score / grade.total_marks) * 100);
+                  return (
+                    <div key={grade.id} className="p-3 rounded-lg border bg-white border-orange-200 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm">{grade.submission?.student?.full_name || 'Student'}</h4>
+                          <p className="text-xs text-gray-600">{grade.submission?.assessment?.title}</p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">{percentage}%</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-400">By {grade.grader?.full_name || 'Instructor'}</p>
+                        <Button size="sm" onClick={() => {
+                          setSelectedGrade(grade);
+                          setVerifyDialogOpen(true);
+                        }}>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Verify
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {pendingGrades.length > 3 && (
+                <p className="mt-3 text-sm text-orange-700">
+                  +{pendingGrades.length - 3} more grades awaiting verification
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* System Health Indicator */}
+        <Card className="mb-6 bg-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-emerald-600" />
+              <CardTitle className="text-lg">System Overview</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-3xl font-bold text-gray-900">{stats?.totalCourses || 0}</p>
+                <p className="text-sm text-gray-600">Active Courses</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-3xl font-bold text-gray-900">{stats?.totalAssessments || 0}</p>
+                <p className="text-sm text-gray-600">Assessments</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-3xl font-bold text-gray-900">{stats?.totalSubmissions || 0}</p>
+                <p className="text-sm text-gray-600">Submissions</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-3xl font-bold text-emerald-600">{verifiedGrades.length}</p>
+                <p className="text-sm text-gray-600">Released Grades</p>
+              </div>
+            </div>
+            {stats?.pendingVerification > 0 && (
+              <div className="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200 flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <span className="text-sm text-orange-800">
+                  <strong>{stats.pendingVerification}</strong> grade(s) require verification before release to students
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <Button className="bg-emerald-600 hover:bg-emerald-700">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Create Course
+          </Button>
+          {pendingGrades.length > 0 && (
+            <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50">
+              <ClipboardCheck className="h-4 w-4 mr-2" />
+              Verify Grades ({pendingGrades.length})
+            </Button>
+          )}
+          <Button variant="outline">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            System Reports
+          </Button>
+          <Button variant="outline">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        </div>
+
         <Tabs defaultValue="verification" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="verification">
-              Grade Verification
+          <TabsList className="bg-white border shadow-sm p-1 flex-wrap h-auto">
+            <TabsTrigger value="verification" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700">
+              <ClipboardCheck className="h-4 w-4 mr-1" />
+              Verification
               {pendingGrades.length > 0 && (
-                <Badge variant="destructive" className="ml-2">
+                <Badge variant="destructive" className="ml-2 h-5 min-w-[20px] flex items-center justify-center">
                   {pendingGrades.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="courses">Course Management</TabsTrigger>
-            <TabsTrigger value="reports">System Reports</TabsTrigger>
-            <TabsTrigger value="profile">
+            <TabsTrigger value="courses" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700">
+              <BookOpen className="h-4 w-4 mr-1" />
+              Courses
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Reports
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700">
               <UserCircle className="h-4 w-4 mr-1" />
-              My Profile
+              Profile
             </TabsTrigger>
           </TabsList>
 

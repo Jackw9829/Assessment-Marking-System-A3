@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings, Eye, Loader2, MessageSquare, UserCircle } from 'lucide-react';
+import { Upload, Download, FileText, LogOut, PlusCircle, CheckCircle, Trash2, Calculator, Settings, Eye, Loader2, MessageSquare, UserCircle, Users, BookOpen, ClipboardList, AlertCircle, Clock, TrendingUp, CheckCircle2, AlertTriangle, ChevronRight, GraduationCap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -492,17 +492,28 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   };
 
   const pendingSubmissions = submissions.filter(s => s.status === 'submitted');
+  const lateSubmissions = submissions.filter(s => {
+    const submittedAt = new Date(s.submitted_at);
+    const dueDate = new Date(s.assessment?.due_date);
+    return submittedAt > dueDate;
+  });
+  const myCourses = courses.filter(c => c.instructor_id === userProfile.id || c.created_by === userProfile.id);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
+      {/* Enhanced Header */}
+      <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">EduConnect AMS - Instructor</h1>
-            <p className="text-sm text-gray-600">Welcome, {userProfile.name}</p>
+          <div className="flex items-center gap-4">
+            <div className="bg-indigo-600 text-white p-2 rounded-lg">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">EduConnect AMS</h1>
+              <p className="text-sm text-gray-600">Instructor Dashboard • <span className="font-medium text-indigo-600">{userProfile.name}</span></p>
+            </div>
           </div>
-          <Button variant="outline" onClick={onLogout}>
+          <Button variant="outline" onClick={onLogout} className="border-gray-300 hover:bg-gray-50">
             <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
@@ -510,57 +521,193 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Total Materials
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{materials.length}</div>
+      <main className="container mx-auto px-4 py-6">
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <Card className="bg-white border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">My</p>
+                  <p className="text-2xl font-bold text-gray-900">{myCourses.length}</p>
+                  <p className="text-xs text-gray-500">Courses</p>
+                </div>
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Active Assessments
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{assessments.length}</div>
+
+          <Card className="bg-white border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Active</p>
+                  <p className="text-2xl font-bold text-gray-900">{assessments.length}</p>
+                  <p className="text-xs text-gray-500">Assessments</p>
+                </div>
+                <div className="bg-purple-100 p-2 rounded-lg">
+                  <ClipboardList className="h-5 w-5 text-purple-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Pending Grading
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingSubmissions.length}</div>
+
+          <Card className="bg-white border-l-4 border-l-indigo-500 hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Uploaded</p>
+                  <p className="text-2xl font-bold text-gray-900">{materials.length}</p>
+                  <p className="text-xs text-gray-500">Materials</p>
+                </div>
+                <div className="bg-indigo-100 p-2 rounded-lg">
+                  <FileText className="h-5 w-5 text-indigo-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-l-4 border-l-cyan-500 hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</p>
+                  <p className="text-2xl font-bold text-gray-900">{submissions.length}</p>
+                  <p className="text-xs text-gray-500">Submissions</p>
+                </div>
+                <div className="bg-cyan-100 p-2 rounded-lg">
+                  <Upload className="h-5 w-5 text-cyan-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`bg-white border-l-4 hover:shadow-md transition-shadow ${pendingSubmissions.length > 0 ? 'border-l-orange-500' : 'border-l-green-500'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pending</p>
+                  <p className={`text-2xl font-bold ${pendingSubmissions.length > 0 ? 'text-orange-600' : 'text-green-600'}`}>{pendingSubmissions.length}</p>
+                  <p className="text-xs text-gray-500">To Grade</p>
+                </div>
+                <div className={`p-2 rounded-lg ${pendingSubmissions.length > 0 ? 'bg-orange-100' : 'bg-green-100'}`}>
+                  {pendingSubmissions.length > 0 ? <Clock className="h-5 w-5 text-orange-600" /> : <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Completed</p>
+                  <p className="text-2xl font-bold text-emerald-600">{gradedSubmissions.length}</p>
+                  <p className="text-xs text-gray-500">Graded</p>
+                </div>
+                <div className="bg-emerald-100 p-2 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="materials" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="courses">Courses</TabsTrigger>
-            <TabsTrigger value="materials">Materials</TabsTrigger>
-            <TabsTrigger value="assessments">Assessments</TabsTrigger>
-            <TabsTrigger value="grading">
+        {/* Pending Grading Alert Section */}
+        {pendingSubmissions.length > 0 && (
+          <Card className="mb-6 border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-lg text-orange-800">Pending Grading Tasks</CardTitle>
+                </div>
+                <Badge variant="destructive" className="animate-pulse">
+                  {pendingSubmissions.length} Awaiting Review
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {pendingSubmissions.slice(0, 3).map((submission: any) => {
+                  const isLate = lateSubmissions.some(s => s.id === submission.id);
+                  return (
+                    <div key={submission.id} className={`p-3 rounded-lg border bg-white ${isLate ? 'border-red-300' : 'border-orange-200'} flex items-center justify-between`}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-sm">{submission.student?.full_name || 'Student'}</h4>
+                          {isLate && <Badge variant="destructive" className="text-xs">Late</Badge>}
+                        </div>
+                        <p className="text-xs text-gray-600">{submission.assessment?.title}</p>
+                        <p className="text-xs text-gray-400">{new Date(submission.submitted_at).toLocaleDateString()}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => handleOpenRubricGrading(submission)}>
+                        <Eye className="h-3 w-3 mr-1" />
+                        Grade
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+              {pendingSubmissions.length > 3 && (
+                <p className="mt-3 text-sm text-orange-700">
+                  +{pendingSubmissions.length - 3} more submissions waiting
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <Button className="bg-indigo-600 hover:bg-indigo-700">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Create Assessment
+          </Button>
+          <Button variant="outline">
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Material
+          </Button>
+          <Button variant="outline">
+            <BookOpen className="h-4 w-4 mr-2" />
+            New Course
+          </Button>
+          {pendingSubmissions.length > 0 && (
+            <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50">
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Grade Submissions ({pendingSubmissions.length})
+            </Button>
+          )}
+        </div>
+
+        <Tabs defaultValue="grading" className="space-y-4">
+          <TabsList className="bg-white border shadow-sm p-1 flex-wrap h-auto">
+            <TabsTrigger value="grading" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
+              <ClipboardList className="h-4 w-4 mr-1" />
               Grading
               {pendingSubmissions.length > 0 && (
-                <Badge variant="destructive" className="ml-2">
+                <Badge variant="destructive" className="ml-2 h-5 min-w-[20px] flex items-center justify-center">
                   {pendingSubmissions.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="profile">
+            <TabsTrigger value="courses" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
+              <BookOpen className="h-4 w-4 mr-1" />
+              Courses
+            </TabsTrigger>
+            <TabsTrigger value="materials" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
+              <FileText className="h-4 w-4 mr-1" />
+              Materials
+            </TabsTrigger>
+            <TabsTrigger value="assessments" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
+              <PlusCircle className="h-4 w-4 mr-1" />
+              Assessments
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
               <UserCircle className="h-4 w-4 mr-1" />
-              My Profile
+              Profile
             </TabsTrigger>
           </TabsList>
 
