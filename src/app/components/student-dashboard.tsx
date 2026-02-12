@@ -1,14 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
-import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History, GraduationCap, UserCircle, Clock, AlertTriangle, CheckCircle2, BookOpen, TrendingUp, Send, Eye, ChevronRight, AlertCircle, LayoutGrid } from 'lucide-react';
+import { Download, FileText, Bell, Award, LogOut, Upload, Filter, Calendar, BarChart3, History, GraduationCap, UserCircle, Clock, AlertTriangle, CheckCircle2, BookOpen, TrendingUp, Send, Eye, ChevronRight, AlertCircle, LayoutGrid, Table as TableIcon, MessageSquare, SortAsc, SortDesc, ArrowUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './ui/table';
 import { getStudentEnrollments, getCourseMaterials, getCourses, getAssessments, submitAssessment, getStudentSubmissions, getStudentGrades, downloadMaterial } from '@/lib/supabase-helpers';
 import { NotificationCenter, UpcomingDeadlinesWidget } from './notification-center';
 import { AssessmentFilter } from './assessment-filter';
@@ -40,6 +48,13 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Grades view state
+  const [gradesViewMode, setGradesViewMode] = useState<'card' | 'table' | 'graph'>('card');
+  const [gradesSortField, setGradesSortField] = useState<'date' | 'percentage' | 'name'>('date');
+  const [gradesSortOrder, setGradesSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedFeedbackGrade, setSelectedFeedbackGrade] = useState<any>(null);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
 
   // Course detail state
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
@@ -87,6 +102,70 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
         return ['overdue', 'urgent', 'soon'].includes(urgency.level);
       })
       .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+  };
+
+  // Grade helpers and computed values
+  const getGradeLabel = (percentage: number) => {
+    if (percentage >= 85) return { label: 'HD', name: 'High Distinction', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+    if (percentage >= 75) return { label: 'D', name: 'Distinction', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+    if (percentage >= 65) return { label: 'CR', name: 'Credit', color: 'bg-green-100 text-green-800 border-green-200' };
+    if (percentage >= 50) return { label: 'P', name: 'Pass', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+    return { label: 'F', name: 'Fail', color: 'bg-red-100 text-red-800 border-red-200' };
+  };
+
+  const getGradeBarColor = (percentage: number) => {
+    if (percentage >= 85) return 'bg-purple-500';
+    if (percentage >= 75) return 'bg-blue-500';
+    if (percentage >= 65) return 'bg-green-500';
+    if (percentage >= 50) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const sortedGrades = useMemo(() => {
+    const gradesWithPercentage = grades.map(g => ({
+      ...g,
+      percentage: Math.round((g.score / g.total_marks) * 100),
+      assessmentName: g.submission?.assessment?.title || 'Assessment',
+    }));
+
+    return gradesWithPercentage.sort((a, b) => {
+      let comparison = 0;
+      switch (gradesSortField) {
+        case 'date':
+          comparison = new Date(a.graded_at).getTime() - new Date(b.graded_at).getTime();
+          break;
+        case 'percentage':
+          comparison = a.percentage - b.percentage;
+          break;
+        case 'name':
+          comparison = a.assessmentName.localeCompare(b.assessmentName);
+          break;
+      }
+      return gradesSortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [grades, gradesSortField, gradesSortOrder]);
+
+  const gradeStats = useMemo(() => {
+    if (grades.length === 0) return null;
+    const percentages = grades.map(g => Math.round((g.score / g.total_marks) * 100));
+    const average = Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length);
+    const highest = Math.max(...percentages);
+    const lowest = Math.min(...percentages);
+    return { average, highest, lowest, total: grades.length };
+  }, [grades]);
+
+  const handleGradesSort = (field: 'date' | 'percentage' | 'name') => {
+    if (gradesSortField === field) {
+      setGradesSortOrder(gradesSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setGradesSortField(field);
+      setGradesSortOrder('desc');
+    }
+  };
+
+  const handleViewFeedback = (grade: any) => {
+    setSelectedFeedbackGrade(grade);
+    setFeedbackDialogOpen(true);
   };
 
   useEffect(() => {
@@ -732,59 +811,373 @@ export function StudentDashboard({ accessToken, userProfile, onLogout }: Student
           </TabsContent>
 
           <TabsContent value="grades" className="space-y-4">
+            {/* Statistics Summary */}
+            {gradeStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="bg-white border-l-4 border-l-blue-500">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Overall Average</p>
+                    <p className="text-2xl font-bold text-gray-900">{gradeStats.average}%</p>
+                    <Badge className={getGradeLabel(gradeStats.average).color}>
+                      {getGradeLabel(gradeStats.average).label}
+                    </Badge>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white border-l-4 border-l-green-500">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Highest Score</p>
+                    <p className="text-2xl font-bold text-green-600">{gradeStats.highest}%</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white border-l-4 border-l-orange-500">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Lowest Score</p>
+                    <p className="text-2xl font-bold text-orange-600">{gradeStats.lowest}%</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white border-l-4 border-l-purple-500">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Total Graded</p>
+                    <p className="text-2xl font-bold text-purple-600">{gradeStats.total}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             <Card>
               <CardHeader>
-                <CardTitle>My Grades</CardTitle>
-                <CardDescription>View your assessment results and feedback</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>My Grades</CardTitle>
+                    <CardDescription>View your assessment results and feedback</CardDescription>
+                  </div>
+                  {/* View Toggle */}
+                  <div className="flex border rounded-lg overflow-hidden">
+                    <Button
+                      variant={gradesViewMode === 'card' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setGradesViewMode('card')}
+                      className="rounded-none"
+                    >
+                      <LayoutGrid className="h-4 w-4 mr-1" />
+                      Card
+                    </Button>
+                    <Button
+                      variant={gradesViewMode === 'table' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setGradesViewMode('table')}
+                      className="rounded-none"
+                    >
+                      <TableIcon className="h-4 w-4 mr-1" />
+                      Table
+                    </Button>
+                    <Button
+                      variant={gradesViewMode === 'graph' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setGradesViewMode('graph')}
+                      className="rounded-none"
+                    >
+                      <BarChart3 className="h-4 w-4 mr-1" />
+                      Graph
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {grades.length === 0 ? (
-                    <p className="text-sm text-gray-500">No grades yet</p>
-                  ) : (
-                    grades.map((grade) => {
-                      const percentage = Math.round((grade.score / grade.total_marks) * 100);
-                      return (
-                        <div key={grade.id} className="p-4 border rounded-lg space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <Award className="h-5 w-5 text-yellow-600" />
-                                <h3 className="font-medium">
-                                  {grade.submission?.assessment?.title || 'Assessment'}
-                                </h3>
+                {grades.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Award className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">No grades released yet</p>
+                    <p className="text-sm text-gray-400 mt-1">Your grades will appear here once released by your instructor</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Card View */}
+                    {gradesViewMode === 'card' && (
+                      <div className="space-y-4">
+                        {sortedGrades.map((grade) => {
+                          const gradeInfo = getGradeLabel(grade.percentage);
+                          return (
+                            <div key={grade.id} className="p-4 border rounded-lg space-y-3 hover:shadow-sm transition-shadow">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <Award className="h-5 w-5 text-yellow-600" />
+                                    <h3 className="font-medium">{grade.assessmentName}</h3>
+                                  </div>
+                                  <p className="text-lg font-semibold mt-1">
+                                    Grade: {grade.score}/{grade.total_marks} ({grade.percentage}%)
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    Graded by {grade.grader?.full_name || 'Instructor'} on {new Date(grade.graded_at).toLocaleDateString()}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    Submitted: {grade.submission?.file_name}
+                                  </p>
+                                </div>
+                                <Badge className={gradeInfo.color}>
+                                  {gradeInfo.label} - {gradeInfo.name}
+                                </Badge>
                               </div>
-                              <p className="text-lg font-semibold mt-1">
-                                Grade: {grade.score}/{grade.total_marks} ({percentage}%)
-                              </p>
-                              <p className="text-sm text-gray-600 mt-1">
-                                Graded by {grade.grader?.full_name || 'Instructor'} on {new Date(grade.graded_at).toLocaleString()}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Submitted: {grade.submission?.file_name} on {new Date(grade.submission?.submitted_at).toLocaleString()}
-                              </p>
+                              {grade.feedback && (
+                                <>
+                                  <Separator />
+                                  <div>
+                                    <h4 className="text-sm font-medium mb-1">Feedback:</h4>
+                                    <p className="text-sm text-gray-700">{grade.feedback}</p>
+                                  </div>
+                                </>
+                              )}
+                              <Progress value={grade.percentage} className="mt-2" />
                             </div>
-                            <Badge variant={percentage >= 50 ? 'default' : 'destructive'}>
-                              {percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Good' : percentage >= 50 ? 'Pass' : 'Needs Improvement'}
-                            </Badge>
-                          </div>
-                          {grade.feedback && (
-                            <>
-                              <Separator />
-                              <div>
-                                <h4 className="text-sm font-medium mb-1">Feedback:</h4>
-                                <p className="text-sm text-gray-700">{grade.feedback}</p>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Table View */}
+                    {gradesViewMode === 'table' && (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead
+                                className="cursor-pointer hover:bg-gray-50"
+                                onClick={() => handleGradesSort('name')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Assessment Name
+                                  {gradesSortField === 'name' && (
+                                    gradesSortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />
+                                  )}
+                                  {gradesSortField !== 'name' && <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-center">Marks Obtained</TableHead>
+                              <TableHead className="text-center">Total Marks</TableHead>
+                              <TableHead
+                                className="text-center cursor-pointer hover:bg-gray-50"
+                                onClick={() => handleGradesSort('percentage')}
+                              >
+                                <div className="flex items-center justify-center gap-1">
+                                  Percentage
+                                  {gradesSortField === 'percentage' && (
+                                    gradesSortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />
+                                  )}
+                                  {gradesSortField !== 'percentage' && <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-center">Grade Status</TableHead>
+                              <TableHead
+                                className="cursor-pointer hover:bg-gray-50"
+                                onClick={() => handleGradesSort('date')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Grading Date
+                                  {gradesSortField === 'date' && (
+                                    gradesSortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />
+                                  )}
+                                  {gradesSortField !== 'date' && <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-center">Feedback</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {sortedGrades.map((grade) => {
+                              const gradeInfo = getGradeLabel(grade.percentage);
+                              return (
+                                <TableRow key={grade.id}>
+                                  <TableCell className="font-medium">{grade.assessmentName}</TableCell>
+                                  <TableCell className="text-center font-semibold">{grade.score}</TableCell>
+                                  <TableCell className="text-center">{grade.total_marks}</TableCell>
+                                  <TableCell className="text-center">
+                                    <span className={`font-bold ${grade.percentage >= 50 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {grade.percentage}%
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Badge className={gradeInfo.color}>
+                                      {gradeInfo.label}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {new Date(grade.graded_at).toLocaleDateString()}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {grade.feedback ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleViewFeedback(grade)}
+                                      >
+                                        <MessageSquare className="h-4 w-4" />
+                                      </Button>
+                                    ) : (
+                                      <span className="text-gray-400">—</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+
+                    {/* Graph View */}
+                    {gradesViewMode === 'graph' && (
+                      <div className="space-y-6">
+                        {/* Bar Chart */}
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-700 mb-4">Performance by Assessment</h4>
+                          <div className="space-y-3">
+                            {sortedGrades.map((grade) => (
+                              <div key={grade.id} className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="truncate max-w-[200px] md:max-w-[300px]" title={grade.assessmentName}>
+                                    {grade.assessmentName}
+                                  </span>
+                                  <span className="font-medium ml-2">{grade.percentage}%</span>
+                                </div>
+                                <div className="h-6 bg-gray-100 rounded-full overflow-hidden relative">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${getGradeBarColor(grade.percentage)}`}
+                                    style={{ width: `${grade.percentage}%` }}
+                                  />
+                                  {/* Average line indicator */}
+                                  {gradeStats && (
+                                    <div
+                                      className="absolute top-0 bottom-0 w-0.5 bg-gray-800"
+                                      style={{ left: `${gradeStats.average}%` }}
+                                      title={`Average: ${gradeStats.average}%`}
+                                    />
+                                  )}
+                                </div>
                               </div>
-                            </>
+                            ))}
+                          </div>
+                          {gradeStats && (
+                            <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+                              <div className="w-3 h-3 bg-gray-800 rounded-full" />
+                              <span>Average: {gradeStats.average}%</span>
+                            </div>
                           )}
-                          <Progress value={percentage} className="mt-2" />
                         </div>
-                      );
-                    })
-                  )}
-                </div>
+
+                        {/* Performance Trend */}
+                        <Separator />
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-700 mb-4">Performance Trend Over Time</h4>
+                          <div className="h-48 flex items-end gap-2 pb-6 relative">
+                            {/* Y-axis labels */}
+                            <div className="absolute left-0 top-0 bottom-6 w-8 flex flex-col justify-between text-xs text-gray-400">
+                              <span>100%</span>
+                              <span>75%</span>
+                              <span>50%</span>
+                              <span>25%</span>
+                              <span>0%</span>
+                            </div>
+
+                            {/* Bars */}
+                            <div className="flex-1 ml-10 flex items-end gap-1">
+                              {[...sortedGrades]
+                                .sort((a, b) => new Date(a.graded_at).getTime() - new Date(b.graded_at).getTime())
+                                .map((grade) => (
+                                  <div key={grade.id} className="flex-1 flex flex-col items-center max-w-16 group relative">
+                                    <div
+                                      className={`w-full rounded-t transition-all cursor-pointer hover:opacity-80 min-h-[4px] ${getGradeBarColor(grade.percentage)}`}
+                                      style={{ height: `${(grade.percentage / 100) * 160}px` }}
+                                    />
+                                    <div className="text-xs text-gray-500 mt-2 truncate w-full text-center">
+                                      {new Date(grade.graded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    </div>
+                                    {/* Tooltip on hover */}
+                                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-10">
+                                      <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                                        {grade.assessmentName}: {grade.percentage}%
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Grade Distribution Legend */}
+                        <Separator />
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Grade Scale</h4>
+                          <div className="flex flex-wrap gap-3">
+                            {[
+                              { label: 'HD', name: 'High Distinction', range: '85-100%', color: 'bg-purple-500' },
+                              { label: 'D', name: 'Distinction', range: '75-84%', color: 'bg-blue-500' },
+                              { label: 'CR', name: 'Credit', range: '65-74%', color: 'bg-green-500' },
+                              { label: 'P', name: 'Pass', range: '50-64%', color: 'bg-yellow-500' },
+                              { label: 'F', name: 'Fail', range: '0-49%', color: 'bg-red-500' },
+                            ].map((g) => (
+                              <div key={g.label} className="flex items-center gap-2 text-sm">
+                                <div className={`w-4 h-4 rounded ${g.color}`} />
+                                <span className="font-medium">{g.label}</span>
+                                <span className="text-gray-500">({g.range})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
+
+            {/* Feedback Dialog */}
+            <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-blue-600" />
+                    Instructor Feedback
+                  </DialogTitle>
+                  <DialogDescription>
+                    {selectedFeedbackGrade?.assessmentName}
+                  </DialogDescription>
+                </DialogHeader>
+                {selectedFeedbackGrade && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-lg font-semibold">
+                          {selectedFeedbackGrade.score}/{selectedFeedbackGrade.total_marks}
+                        </span>
+                        <span className="text-gray-500 ml-2">
+                          ({selectedFeedbackGrade.percentage}%)
+                        </span>
+                      </div>
+                      <Badge className={getGradeLabel(selectedFeedbackGrade.percentage).color}>
+                        {getGradeLabel(selectedFeedbackGrade.percentage).label} - {getGradeLabel(selectedFeedbackGrade.percentage).name}
+                      </Badge>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Feedback</h4>
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                        <p className="text-gray-700 whitespace-pre-wrap">
+                          {selectedFeedbackGrade.feedback || 'No feedback provided.'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Graded on {new Date(selectedFeedbackGrade.graded_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Profile Tab */}
