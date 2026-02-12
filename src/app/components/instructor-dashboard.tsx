@@ -94,6 +94,9 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   const [calculatedTotal, setCalculatedTotal] = useState<number>(0);
   const [allComponentsGraded, setAllComponentsGraded] = useState(false);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('grading');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -662,27 +665,27 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <Button className="bg-indigo-600 hover:bg-indigo-700">
+          <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setActiveTab('assessments')}>
             <PlusCircle className="h-4 w-4 mr-2" />
             Create Assessment
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setActiveTab('materials')}>
             <Upload className="h-4 w-4 mr-2" />
             Upload Material
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setActiveTab('courses')}>
             <BookOpen className="h-4 w-4 mr-2" />
             New Course
           </Button>
           {pendingSubmissions.length > 0 && (
-            <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50">
+            <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => setActiveTab('grading')}>
               <ClipboardList className="h-4 w-4 mr-2" />
               Grade Submissions ({pendingSubmissions.length})
             </Button>
           )}
         </div>
 
-        <Tabs defaultValue="grading" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="bg-white border shadow-sm p-1 flex-wrap h-auto">
             <TabsTrigger value="grading" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
               <ClipboardList className="h-4 w-4 mr-1" />

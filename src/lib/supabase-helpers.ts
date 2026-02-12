@@ -809,21 +809,41 @@ export async function createRubricTemplate(
 
 /**
  * Get rubric template for an assessment
+ * Returns null if rubric system is not configured (tables don't exist)
  */
 export async function getRubricTemplate(assessmentId: string) {
-    const { data, error } = await supabase
-        .from('rubric_templates')
-        .select(`
-            *,
-            components:rubric_components(
-                id, name, description, weight_percentage, max_score, order_index
-            )
-        `)
-        .eq('assessment_id', assessmentId)
-        .single();
+    try {
+        const { data, error } = await supabase
+            .from('rubric_templates')
+            .select(`
+                *,
+                components:rubric_components(
+                    id, name, description, weight_percentage, max_score, order_index
+                )
+            `)
+            .eq('assessment_id', assessmentId)
+            .single();
 
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-    return data;
+        // PGRST116 = no rows found, which is valid (no rubric for this assessment)
+        if (error && error.code !== 'PGRST116') {
+            // Check for 406 or table-not-found errors - rubric system not configured
+            if (error.message?.includes('relation') ||
+                error.message?.includes('does not exist') ||
+                error.code === '42P01') {
+                console.debug('Rubric system not configured - using simple grading');
+                return null;
+            }
+            throw error;
+        }
+        return data;
+    } catch (err: any) {
+        // Handle network-level 406 errors (table doesn't exist)
+        if (err.status === 406 || err.code === '42P01') {
+            console.debug('Rubric tables not found - using simple grading');
+            return null;
+        }
+        throw err;
+    }
 }
 
 /**

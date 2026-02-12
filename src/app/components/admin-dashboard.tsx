@@ -38,6 +38,9 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('verification');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -320,27 +323,27 @@ export function AdminDashboard({ accessToken, userProfile, onLogout }: AdminDash
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <Button className="bg-emerald-600 hover:bg-emerald-700">
+          <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setActiveTab('courses')}>
             <PlusCircle className="h-4 w-4 mr-2" />
             Create Course
           </Button>
           {pendingGrades.length > 0 && (
-            <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50">
+            <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => setActiveTab('verification')}>
               <ClipboardCheck className="h-4 w-4 mr-2" />
               Verify Grades ({pendingGrades.length})
             </Button>
           )}
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setActiveTab('reports')}>
             <BarChart3 className="h-4 w-4 mr-2" />
             System Reports
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setActiveTab('profile')}>
             <Settings className="h-4 w-4 mr-2" />
             Settings
           </Button>
         </div>
 
-        <Tabs defaultValue="verification" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="bg-white border shadow-sm p-1 flex-wrap h-auto">
             <TabsTrigger value="verification" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700">
               <ClipboardCheck className="h-4 w-4 mr-1" />
