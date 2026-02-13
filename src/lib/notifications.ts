@@ -380,21 +380,12 @@ export async function getUpcomingDeadlines(
 
     if (!user) return [];
 
-    // Get enrolled course IDs
-    const { data: enrollments } = await supabase
-        .from('course_enrollments')
-        .select('course_id')
-        .eq('student_id', user.id);
-
-    if (!enrollments?.length) return [];
-
-    const courseIds = (enrollments as { course_id: string }[]).map(e => e.course_id);
-
     // Calculate future date
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + daysAhead);
 
-    // Get assessments
+    // Get assessments directly - RLS handles access control
+    // This matches how getAssessments() works in supabase-helpers.ts
     const { data: assessments, error } = await supabase
         .from('assessments')
         .select(`
@@ -408,7 +399,6 @@ export async function getUpcomingDeadlines(
         code
       )
     `)
-        .in('course_id', courseIds)
         .gte('due_date', new Date().toISOString())
         .lte('due_date', futureDate.toISOString())
         .order('due_date', { ascending: true });

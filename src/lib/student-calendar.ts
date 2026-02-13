@@ -259,15 +259,16 @@ export function getWeekDays(date: Date, events: CalendarEvent[]): CalendarDay[] 
 // =============================================
 
 /**
- * Fetch calendar events for a student within a date range
+ * Fetch calendar events for the current student within a date range
+ * Note: studentId parameter is kept for backward compatibility but not used
+ * The RPC function uses auth.uid() to determine the current user
  */
 export async function getCalendarEvents(
-    studentId: string,
+    _studentId: string,
     startDate: Date,
     endDate: Date
 ): Promise<CalendarEvent[]> {
     const { data, error } = await (supabase as any).rpc('get_student_calendar_events', {
-        p_student_id: studentId,
         p_start_date: startDate.toISOString().split('T')[0],
         p_end_date: endDate.toISOString().split('T')[0],
     });
@@ -277,7 +278,24 @@ export async function getCalendarEvents(
         throw error;
     }
 
-    return (data || []) as CalendarEvent[];
+    // Transform RPC response to CalendarEvent format
+    return (data || []).map((item: any) => ({
+        assessment_id: item.id,
+        title: item.title,
+        description: item.description,
+        due_date: item.due_date,
+        total_marks: item.total_marks,
+        assessment_type: item.assessment_type || 'assignment',
+        course_id: item.course_id,
+        course_code: item.course_code,
+        course_title: item.course_name,
+        submission_id: item.is_submitted ? 'submitted' : null,
+        submission_status: item.submission_status,
+        is_overdue: item.submission_status === 'overdue',
+        is_due_soon: new Date(item.due_date).getTime() - Date.now() < 24 * 60 * 60 * 1000 &&
+            new Date(item.due_date).getTime() > Date.now(),
+        is_submitted: item.is_submitted,
+    })) as CalendarEvent[];
 }
 
 /**

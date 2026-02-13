@@ -511,6 +511,11 @@ export async function getAssessments(courseId?: string) {
 }
 
 /**
+ * Assessment type options
+ */
+export type AssessmentType = 'assignment' | 'quiz' | 'examination' | 'project' | 'practical' | 'other';
+
+/**
  * Create an assessment (Instructor only)
  */
 export async function createAssessment(
@@ -518,11 +523,22 @@ export async function createAssessment(
     title: string,
     description: string | null,
     dueDate: string,
-    totalMarks: number = 100
+    totalMarks: number = 100,
+    options: {
+        assessmentType?: AssessmentType;
+        isActive?: boolean;
+        isPublished?: boolean;
+    } = {}
 ) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('Not authenticated');
+
+    const {
+        assessmentType = 'assignment',
+        isActive = true,
+        isPublished = true
+    } = options;
 
     const { data, error } = await supabase
         .from('assessments')
@@ -533,6 +549,9 @@ export async function createAssessment(
             due_date: dueDate,
             total_marks: totalMarks,
             created_by: user.id,
+            assessment_type: assessmentType,
+            is_active: isActive,
+            is_published: isPublished,
         })
         .select()
         .single();
