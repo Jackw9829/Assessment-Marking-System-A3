@@ -259,23 +259,123 @@ export function getWeekDays(date: Date, events: CalendarEvent[]): CalendarDay[] 
 // =============================================
 
 /**
+ * Fallback query when RPC function doesn't exist
+ * Directly queries assessments for enrolled courses
+ */
+async function getCalendarEventsFallback(
+    startDate: Date,
+    endDate: Date
+): Promise<CalendarEvent[]> {
+    // Get user's enrolled courses
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data: enrollments } = await supabase
+        .from('course_enrollments')
+        .select('course_id')
+        .eq('student_id', user.id) as { data: { course_id: string }[] | null };
+
+    if (!enrollments || enrollments.length === 0) return [];
+
+    const courseIds = enrollments.map(e => e.course_id);
+
+    // Get assessments for enrolled courses
+    const { data: assessments, error } = await supabase
+        .from('assessments')
+        .select(`
+            id,
+            title,
+            description,
+            due_date,
+            total_marks,
+            course_id,
+            courses!inner (
+                id,
+                code,
+                title
+            )
+        `)
+        .in('course_id', courseIds)
+        .gte('due_date', startDate.toISOString())
+        .lt('due_date', endDate.toISOString())
+        .order('due_date', { ascending: true }) as { data: any[] | null; error: any };
+
+    if (error) {
+        console.error('Fallback query error:', error);
+        return [];
+    }
+
+    // Get user's submissions for these assessments
+    const assessmentIds = (assessments || []).map((a: any) => a.id);
+    const { data: submissions } = await supabase
+        .from('submissions')
+        .select('assessment_id, id, submitted_at, status')
+        .eq('student_id', user.id)
+        .in('assessment_id', assessmentIds) as { data: { assessment_id: string; id: string; submitted_at: string; status: string }[] | null };
+
+    const submissionMap = new Map(
+        (submissions || []).map(s => [s.assessment_id, s])
+    );
+
+    return (assessments || []).map((a: any) => {
+        const submission = submissionMap.get(a.id);
+        const dueDate = new Date(a.due_date);
+        const now = Date.now();
+        const isOverdue = !submission && dueDate.getTime() < now;
+        const isDueSoon = !submission && dueDate.getTime() - now < 24 * 60 * 60 * 1000 && dueDate.getTime() > now;
+
+        return {
+            assessment_id: a.id,
+            title: a.title,
+            description: a.description,
+            due_date: a.due_date,
+            total_marks: a.total_marks,
+            assessment_type: 'assignment' as AssessmentType,
+            course_id: a.course_id,
+            course_code: a.courses?.code || '',
+            course_title: a.courses?.title || '',
+            submission_id: submission?.id || null,
+            submission_status: submission?.status === 'graded' ? 'graded' :
+                submission ? 'submitted' :
+                    isOverdue ? 'overdue' : 'pending',
+            is_overdue: isOverdue,
+            is_due_soon: isDueSoon,
+            is_submitted: !!submission,
+        };
+    });
+}
+
+/**
  * Fetch calendar events for the current student within a date range
- * Note: studentId parameter is kept for backward compatibility but not used
- * The RPC function uses auth.uid() to determine the current user
+ * Uses RPC function if available, falls back to direct query
  */
 export async function getCalendarEvents(
     _studentId: string,
     startDate: Date,
     endDate: Date
 ): Promise<CalendarEvent[]> {
+    // Try RPC function first
     const { data, error } = await (supabase as any).rpc('get_student_calendar_events', {
         p_start_date: startDate.toISOString().split('T')[0],
         p_end_date: endDate.toISOString().split('T')[0],
     });
 
+    // If RPC fails (404 or function not found), use fallback
     if (error) {
+        console.warn('RPC function not available, using fallback:', error.message);
+
+        // Check if it's a "function not found" type error
+        if (error.code === '42883' || // undefined_function
+            error.code === 'PGRST202' || // function not found
+            error.message?.includes('404') ||
+            error.message?.includes('function') ||
+            error.message?.includes('does not exist')) {
+            return getCalendarEventsFallback(startDate, endDate);
+        }
+
+        // For other errors, still try fallback
         console.error('Error fetching calendar events:', error);
-        throw error;
+        return getCalendarEventsFallback(startDate, endDate);
     }
 
     // Transform RPC response to CalendarEvent format

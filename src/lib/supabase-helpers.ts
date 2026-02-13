@@ -517,6 +517,7 @@ export type AssessmentType = 'assignment' | 'quiz' | 'examination' | 'project' |
 
 /**
  * Create an assessment (Instructor only)
+ * Backward compatible: works with or without new schema columns
  */
 export async function createAssessment(
     courseId: string,
@@ -540,7 +541,8 @@ export async function createAssessment(
         isPublished = true
     } = options;
 
-    const { data, error } = await supabase
+    // First try with new schema columns
+    let { data, error } = await supabase
         .from('assessments')
         .insert({
             course_id: courseId,
@@ -555,6 +557,32 @@ export async function createAssessment(
         })
         .select()
         .single();
+
+    // If error mentions missing column, retry with base schema only
+    if (error && (
+        error.message?.includes('column') ||
+        error.code === '42703' || // undefined_column
+        error.message?.includes('assessment_type') ||
+        error.message?.includes('is_active') ||
+        error.message?.includes('is_published')
+    )) {
+        console.warn('New schema columns not found, using base schema');
+        const result = await supabase
+            .from('assessments')
+            .insert({
+                course_id: courseId,
+                title,
+                description,
+                due_date: dueDate,
+                total_marks: totalMarks,
+                created_by: user.id,
+            })
+            .select()
+            .single();
+
+        data = result.data;
+        error = result.error;
+    }
 
     if (error) throw error;
     return data;

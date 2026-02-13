@@ -76,7 +76,7 @@ BEGIN
         'assessment'::text as event_type,
         c.id as course_id,
         c.code::text as course_code,
-        c.name::text as course_name,
+        c.title::text as course_name,
         a.due_date,
         COALESCE(a.assessment_type::text, 'assignment')::text as assessment_type,
         CASE 
@@ -90,7 +90,7 @@ BEGIN
         a.total_marks
     FROM assessments a
     INNER JOIN courses c ON a.course_id = c.id
-    INNER JOIN course_enrollments ce ON ce.course_id = c.id AND ce.user_id = auth.uid()
+    INNER JOIN course_enrollments ce ON ce.course_id = c.id AND ce.student_id = auth.uid()
     LEFT JOIN submissions s ON s.assessment_id = a.id AND s.student_id = auth.uid()
     WHERE 
         a.due_date >= p_start_date::timestamptz
@@ -133,7 +133,7 @@ BEGIN
 
     -- Schedule reminders for all currently enrolled students
     FOR enrolled_student IN 
-        SELECT ce.user_id 
+        SELECT ce.student_id as user_id 
         FROM course_enrollments ce
         WHERE ce.course_id = NEW.course_id
     LOOP
@@ -217,7 +217,7 @@ BEGIN
                 is_active
             ) VALUES (
                 assessment_rec.id,
-                NEW.user_id,
+                NEW.student_id,
                 '7_day',
                 reminder_7day,
                 true
@@ -235,7 +235,7 @@ BEGIN
                 is_active
             ) VALUES (
                 assessment_rec.id,
-                NEW.user_id,
+                NEW.student_id,
                 '1_day',
                 reminder_1day,
                 true
@@ -297,7 +297,7 @@ BEGIN
 
             -- Schedule new reminders for all enrolled students
             FOR enrolled_student IN 
-                SELECT ce.user_id 
+                SELECT ce.student_id as user_id 
                 FROM course_enrollments ce
                 WHERE ce.course_id = NEW.course_id
             LOOP
@@ -377,10 +377,10 @@ BEGIN
 
         -- Get enrolled students who don't have submissions
         FOR enrolled_student IN 
-            SELECT ce.user_id 
+            SELECT ce.student_id as user_id 
             FROM course_enrollments ce
             LEFT JOIN submissions s ON s.assessment_id = assessment_rec.id 
-                AND s.student_id = ce.user_id
+                AND s.student_id = ce.student_id
             WHERE ce.course_id = assessment_rec.course_id
             AND s.id IS NULL  -- No submission yet
         LOOP
@@ -454,7 +454,7 @@ BEGIN
         'assessment'::text as event_type,
         c.id as course_id,
         c.code::text as course_code,
-        c.name::text as course_name,
+        c.title::text as course_name,
         a.due_date,
         COALESCE(a.assessment_type::text, 'assignment')::text as assessment_type,
         COALESCE(a.is_active, true) as is_active,
