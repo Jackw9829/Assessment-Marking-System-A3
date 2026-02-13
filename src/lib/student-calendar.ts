@@ -266,18 +266,12 @@ async function getCalendarEventsFallback(
     startDate: Date,
     endDate: Date
 ): Promise<CalendarEvent[]> {
-    // Get user's enrolled courses
+    // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         console.warn('Calendar fallback: No authenticated user');
         return [];
     }
-
-    // First try with enrollment filter
-    const { data: enrollments } = await supabase
-        .from('course_enrollments')
-        .select('course_id')
-        .eq('student_id', user.id) as { data: { course_id: string }[] | null };
 
     // Format dates for query - extend end date to include full day
     const startDateStr = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -285,66 +279,33 @@ async function getCalendarEventsFallback(
     endDateExtended.setDate(endDateExtended.getDate() + 1); // Add 1 day to include events on end date
     const endDateStr = endDateExtended.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    let assessments: any[] = [];
-    let error: any = null;
-
-    if (enrollments && enrollments.length > 0) {
-        // Query with enrollment filter
-        const courseIds = enrollments.map(e => e.course_id);
-        const result = await supabase
-            .from('assessments')
-            .select(`
+    // Query ALL assessments directly - RLS handles access control
+    // This matches how getUpcomingDeadlines() works in notifications.ts
+    const { data: assessments, error } = await supabase
+        .from('assessments')
+        .select(`
+            id,
+            title,
+            description,
+            due_date,
+            total_marks,
+            course_id,
+            courses (
                 id,
-                title,
-                description,
-                due_date,
-                total_marks,
-                course_id,
-                courses (
-                    id,
-                    code,
-                    title
-                )
-            `)
-            .in('course_id', courseIds)
-            .gte('due_date', startDateStr)
-            .lt('due_date', endDateStr)
-            .order('due_date', { ascending: true });
-
-        assessments = result.data || [];
-        error = result.error;
-    } else {
-        // No enrollments found - try querying all assessments (RLS will filter)
-        console.warn('Calendar fallback: No enrollments found, querying all assessments');
-        const result = await supabase
-            .from('assessments')
-            .select(`
-                id,
-                title,
-                description,
-                due_date,
-                total_marks,
-                course_id,
-                courses (
-                    id,
-                    code,
-                    title
-                )
-            `)
-            .gte('due_date', startDateStr)
-            .lt('due_date', endDateStr)
-            .order('due_date', { ascending: true });
-
-        assessments = result.data || [];
-        error = result.error;
-    }
+                code,
+                title
+            )
+        `)
+        .gte('due_date', startDateStr)
+        .lt('due_date', endDateStr)
+        .order('due_date', { ascending: true });
 
     if (error) {
         console.error('Fallback query error:', error);
         return [];
     }
 
-    if (assessments.length === 0) {
+    if (!assessments || assessments.length === 0) {
         console.warn('Calendar fallback: No assessments found in date range', startDateStr, 'to', endDateStr);
         return [];
     }
