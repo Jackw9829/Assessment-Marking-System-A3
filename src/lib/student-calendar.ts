@@ -268,45 +268,89 @@ async function getCalendarEventsFallback(
 ): Promise<CalendarEvent[]> {
     // Get user's enrolled courses
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (!user) {
+        console.warn('Calendar fallback: No authenticated user');
+        return [];
+    }
 
+    // First try with enrollment filter
     const { data: enrollments } = await supabase
         .from('course_enrollments')
         .select('course_id')
         .eq('student_id', user.id) as { data: { course_id: string }[] | null };
 
-    if (!enrollments || enrollments.length === 0) return [];
+    // Format dates for query - extend end date to include full day
+    const startDateStr = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const endDateExtended = new Date(endDate);
+    endDateExtended.setDate(endDateExtended.getDate() + 1); // Add 1 day to include events on end date
+    const endDateStr = endDateExtended.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    const courseIds = enrollments.map(e => e.course_id);
+    let assessments: any[] = [];
+    let error: any = null;
 
-    // Get assessments for enrolled courses
-    const { data: assessments, error } = await supabase
-        .from('assessments')
-        .select(`
-            id,
-            title,
-            description,
-            due_date,
-            total_marks,
-            course_id,
-            courses!inner (
+    if (enrollments && enrollments.length > 0) {
+        // Query with enrollment filter
+        const courseIds = enrollments.map(e => e.course_id);
+        const result = await supabase
+            .from('assessments')
+            .select(`
                 id,
-                code,
-                title
-            )
-        `)
-        .in('course_id', courseIds)
-        .gte('due_date', startDate.toISOString())
-        .lt('due_date', endDate.toISOString())
-        .order('due_date', { ascending: true }) as { data: any[] | null; error: any };
+                title,
+                description,
+                due_date,
+                total_marks,
+                course_id,
+                courses (
+                    id,
+                    code,
+                    title
+                )
+            `)
+            .in('course_id', courseIds)
+            .gte('due_date', startDateStr)
+            .lt('due_date', endDateStr)
+            .order('due_date', { ascending: true });
+
+        assessments = result.data || [];
+        error = result.error;
+    } else {
+        // No enrollments found - try querying all assessments (RLS will filter)
+        console.warn('Calendar fallback: No enrollments found, querying all assessments');
+        const result = await supabase
+            .from('assessments')
+            .select(`
+                id,
+                title,
+                description,
+                due_date,
+                total_marks,
+                course_id,
+                courses (
+                    id,
+                    code,
+                    title
+                )
+            `)
+            .gte('due_date', startDateStr)
+            .lt('due_date', endDateStr)
+            .order('due_date', { ascending: true });
+
+        assessments = result.data || [];
+        error = result.error;
+    }
 
     if (error) {
         console.error('Fallback query error:', error);
         return [];
     }
 
+    if (assessments.length === 0) {
+        console.warn('Calendar fallback: No assessments found in date range', startDateStr, 'to', endDateStr);
+        return [];
+    }
+
     // Get user's submissions for these assessments
-    const assessmentIds = (assessments || []).map((a: any) => a.id);
+    const assessmentIds = assessments.map((a: any) => a.id);
     const { data: submissions } = await supabase
         .from('submissions')
         .select('assessment_id, id, submitted_at, status')
@@ -317,7 +361,7 @@ async function getCalendarEventsFallback(
         (submissions || []).map(s => [s.assessment_id, s])
     );
 
-    return (assessments || []).map((a: any) => {
+    return assessments.map((a: any) => {
         const submission = submissionMap.get(a.id);
         const dueDate = new Date(a.due_date);
         const now = Date.now();

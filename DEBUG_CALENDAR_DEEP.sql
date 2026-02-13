@@ -149,41 +149,20 @@ ORDER BY a.due_date;
 -- ============================================================================
 SELECT '=== STEP 6: REMINDER SCHEDULES CHECK ===' as debug_step;
 
--- Check if scheduled_reminders table exists
+-- Check if reminder tables exist
 SELECT 
     CASE WHEN EXISTS (
         SELECT 1 FROM information_schema.tables WHERE table_name = 'scheduled_reminders'
     ) THEN '✅ scheduled_reminders table EXISTS' 
-    ELSE '❌ MISSING - Deadline reminders not set up' 
-    END as reminder_table_status;
+    ELSE '❌ MISSING - Run deadline_reminders_system migration' 
+    END as scheduled_reminders_status,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_name = 'reminder_schedules'
+    ) THEN '✅ reminder_schedules table EXISTS' 
+    ELSE '❌ MISSING - Run deadline_reminders_system migration' 
+    END as reminder_schedules_status;
 
--- If table exists, show recent reminders
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'scheduled_reminders') THEN
-        RAISE NOTICE 'Scheduled reminders found - checking data...';
-    END IF;
-END $$;
-
--- Show scheduled reminders if table exists (wrapped in conditional)
-SELECT 
-    sr.id as reminder_id,
-    a.title as assessment_title,
-    rs.name as reminder_type,
-    sr.scheduled_for,
-    sr.status,
-    sr.sent_at,
-    CASE 
-        WHEN sr.sent_at IS NOT NULL THEN '✅ SENT'
-        WHEN sr.scheduled_for < NOW() AND sr.sent_at IS NULL THEN '⚠️ OVERDUE (not sent)'
-        WHEN sr.status = 'cancelled' THEN '❌ CANCELLED'
-        ELSE '⏳ PENDING'
-    END as reminder_status
-FROM scheduled_reminders sr
-JOIN assessments a ON sr.assessment_id = a.id
-JOIN reminder_schedules rs ON sr.schedule_id = rs.id
-ORDER BY sr.scheduled_for DESC
-LIMIT 20;
+-- Note: Run VERIFY_REMINDER_SYSTEM.sql for detailed reminder diagnostics
 
 -- ============================================================================
 -- STEP 7: DIAGNOSIS SUMMARY
