@@ -191,6 +191,63 @@ export async function processDueReminders(): Promise<number> {
 }
 
 /**
+ * Process email queue - sends pending emails via database function
+ * This is called periodically when admins are active
+ */
+export async function processEmailQueue(batchSize: number = 5): Promise<number> {
+    try {
+        const { data, error } = await (supabase as any).rpc('process_email_queue', {
+            p_batch_size: batchSize
+        });
+
+        if (error) {
+            // Function might not exist yet - that's ok
+            if (error.code === '42883' || error.message?.includes('does not exist')) {
+                console.log('process_email_queue function not available');
+                return 0;
+            }
+            console.error('Error processing email queue:', error);
+            return 0;
+        }
+
+        const sentCount = (data || []).filter((r: any) => r.status === 'sent').length;
+        if (sentCount > 0) {
+            console.log(`Sent ${sentCount} emails`);
+        }
+
+        return sentCount;
+    } catch (err) {
+        console.error('Error calling process_email_queue:', err);
+        return 0;
+    }
+}
+
+/**
+ * Get email queue status for admin dashboard
+ */
+export async function getEmailQueueStatus(): Promise<{
+    pending: number;
+    sent: number;
+    failed: number;
+}> {
+    const { data, error } = await (supabase as any)
+        .from('email_queue')
+        .select('status');
+
+    if (error) {
+        console.error('Error fetching email queue status:', error);
+        return { pending: 0, sent: 0, failed: 0 };
+    }
+
+    const statuses = data || [];
+    return {
+        pending: statuses.filter((e: any) => e.status === 'pending').length,
+        sent: statuses.filter((e: any) => e.status === 'sent').length,
+        failed: statuses.filter((e: any) => e.status === 'failed').length,
+    };
+}
+
+/**
  * Mark a notification as read
  */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
