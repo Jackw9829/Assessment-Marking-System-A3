@@ -359,48 +359,9 @@ export async function getCalendarEvents(
     startDate: Date,
     endDate: Date
 ): Promise<CalendarEvent[]> {
-    // Try RPC function first
-    const { data, error } = await (supabase as any).rpc('get_student_calendar_events', {
-        p_start_date: startDate.toISOString().split('T')[0],
-        p_end_date: endDate.toISOString().split('T')[0],
-    });
-
-    // If RPC fails (404 or function not found), use fallback
-    if (error) {
-        console.warn('RPC function not available, using fallback:', error.message);
-
-        // Check if it's a "function not found" type error
-        if (error.code === '42883' || // undefined_function
-            error.code === 'PGRST202' || // function not found
-            error.message?.includes('404') ||
-            error.message?.includes('function') ||
-            error.message?.includes('does not exist')) {
-            return getCalendarEventsFallback(startDate, endDate);
-        }
-
-        // For other errors, still try fallback
-        console.error('Error fetching calendar events:', error);
-        return getCalendarEventsFallback(startDate, endDate);
-    }
-
-    // Transform RPC response to CalendarEvent format
-    return (data || []).map((item: any) => ({
-        assessment_id: item.id,
-        title: item.title,
-        description: item.description,
-        due_date: item.due_date,
-        total_marks: item.total_marks,
-        assessment_type: item.assessment_type || 'assignment',
-        course_id: item.course_id,
-        course_code: item.course_code,
-        course_title: item.course_name,
-        submission_id: item.is_submitted ? 'submitted' : null,
-        submission_status: item.submission_status,
-        is_overdue: item.submission_status === 'overdue',
-        is_due_soon: new Date(item.due_date).getTime() - Date.now() < 24 * 60 * 60 * 1000 &&
-            new Date(item.due_date).getTime() > Date.now(),
-        is_submitted: item.is_submitted,
-    })) as CalendarEvent[];
+    // Skip RPC - use direct query which works for all authenticated users
+    // The RPC function requires course_enrollments which excludes new students
+    return getCalendarEventsFallback(startDate, endDate);
 }
 
 /**
