@@ -40,7 +40,7 @@ CREATE OR REPLACE FUNCTION process_email_queue(p_batch_size INTEGER DEFAULT 10)
 RETURNS TABLE (
     email_id UUID,
     recipient TEXT,
-    status TEXT,
+    send_status TEXT,
     request_id BIGINT
 ) AS $$
 DECLARE
@@ -48,11 +48,11 @@ DECLARE
     v_request_id BIGINT;
 BEGIN
     FOR v_email IN
-        SELECT * FROM email_queue
-        WHERE status = 'pending'
-        AND scheduled_for <= NOW()
-        AND attempts < max_attempts
-        ORDER BY scheduled_for
+        SELECT eq.* FROM email_queue eq
+        WHERE eq.status = 'pending'
+        AND eq.scheduled_for <= NOW()
+        AND eq.attempts < eq.max_attempts
+        ORDER BY eq.scheduled_for
         LIMIT p_batch_size
     LOOP
         BEGIN
