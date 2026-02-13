@@ -162,6 +162,35 @@ export async function getUnreadNotificationCount(): Promise<number> {
 }
 
 /**
+ * Process due reminders - converts scheduled_reminders to notifications
+ * This is called periodically to ensure reminders are delivered
+ */
+export async function processDueReminders(): Promise<number> {
+    try {
+        const { data, error } = await (supabase as any).rpc('process_due_reminders');
+
+        if (error) {
+            // Function might not exist yet - that's ok
+            if (error.code === '42883' || error.message?.includes('does not exist')) {
+                console.log('process_due_reminders function not available');
+                return 0;
+            }
+            console.error('Error processing due reminders:', error);
+            return 0;
+        }
+
+        if (data && data > 0) {
+            console.log(`Processed ${data} due reminders`);
+        }
+
+        return data || 0;
+    } catch (err) {
+        console.error('Error calling process_due_reminders:', err);
+        return 0;
+    }
+}
+
+/**
  * Mark a notification as read
  */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {

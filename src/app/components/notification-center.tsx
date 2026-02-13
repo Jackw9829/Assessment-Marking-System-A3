@@ -34,6 +34,7 @@ import {
     subscribeToNotifications,
     formatTimeUntilDeadline,
     getDeadlineUrgency,
+    processDueReminders,
 } from '@/lib/notifications';
 
 interface NotificationCenterProps {
@@ -67,6 +68,21 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
     useEffect(() => {
         fetchNotifications();
 
+        // Process due reminders on load and every 5 minutes
+        const processReminders = async () => {
+            const processed = await processDueReminders();
+            if (processed > 0) {
+                // Refresh notifications if new ones were created
+                fetchNotifications();
+            }
+        };
+
+        // Process immediately on mount
+        processReminders();
+
+        // Set up interval to process every 5 minutes
+        const reminderInterval = setInterval(processReminders, 5 * 60 * 1000);
+
         // Subscribe to new notifications
         const unsubscribe = subscribeToNotifications(userId, (newNotification: Notification) => {
             setNotifications((prev) => [newNotification, ...prev]);
@@ -84,6 +100,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
 
         return () => {
             unsubscribe();
+            clearInterval(reminderInterval);
         };
     }, [userId, fetchNotifications]);
 
