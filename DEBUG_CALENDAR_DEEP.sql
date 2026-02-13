@@ -149,39 +149,40 @@ ORDER BY a.due_date;
 -- ============================================================================
 SELECT '=== STEP 6: REMINDER SCHEDULES CHECK ===' as debug_step;
 
--- Check if reminder_schedules table exists
+-- Check if scheduled_reminders table exists
 SELECT 
     CASE WHEN EXISTS (
-        SELECT 1 FROM information_schema.tables WHERE table_name = 'reminder_schedules'
-    ) THEN '✅ reminder_schedules table EXISTS' 
+        SELECT 1 FROM information_schema.tables WHERE table_name = 'scheduled_reminders'
+    ) THEN '✅ scheduled_reminders table EXISTS' 
     ELSE '❌ MISSING - Deadline reminders not set up' 
     END as reminder_table_status;
 
 -- If table exists, show recent reminders
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'reminder_schedules') THEN
-        RAISE NOTICE 'Reminder schedules found - checking data...';
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'scheduled_reminders') THEN
+        RAISE NOTICE 'Scheduled reminders found - checking data...';
     END IF;
 END $$;
 
--- Show reminder schedules if table exists
+-- Show scheduled reminders if table exists (wrapped in conditional)
 SELECT 
-    rs.id as reminder_id,
+    sr.id as reminder_id,
     a.title as assessment_title,
-    rs.reminder_type,
-    rs.scheduled_for,
-    rs.is_active,
-    rs.sent_at,
+    rs.name as reminder_type,
+    sr.scheduled_for,
+    sr.status,
+    sr.sent_at,
     CASE 
-        WHEN rs.sent_at IS NOT NULL THEN '✅ SENT'
-        WHEN rs.scheduled_for < NOW() AND rs.sent_at IS NULL THEN '⚠️ OVERDUE (not sent)'
-        WHEN rs.is_active = false THEN '❌ INACTIVE'
+        WHEN sr.sent_at IS NOT NULL THEN '✅ SENT'
+        WHEN sr.scheduled_for < NOW() AND sr.sent_at IS NULL THEN '⚠️ OVERDUE (not sent)'
+        WHEN sr.status = 'cancelled' THEN '❌ CANCELLED'
         ELSE '⏳ PENDING'
     END as reminder_status
-FROM reminder_schedules rs
-JOIN assessments a ON rs.assessment_id = a.id
-ORDER BY rs.scheduled_for DESC
+FROM scheduled_reminders sr
+JOIN assessments a ON sr.assessment_id = a.id
+JOIN reminder_schedules rs ON sr.schedule_id = rs.id
+ORDER BY sr.scheduled_for DESC
 LIMIT 20;
 
 -- ============================================================================
