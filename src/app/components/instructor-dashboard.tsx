@@ -400,33 +400,43 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
 
   const handleOpenRubricGrading = async (submission: any) => {
     setSelectedSubmission(submission);
+    setGradeFeedback('');
+    setGradeScore('');
 
     // Load rubric template for this assessment
     try {
       const template = await getRubricTemplate(submission.assessment?.id) as any;
-      if (!template || !template.components || template.components.length === 0) {
-        // No rubric - use simple grading
-        setGradeDialogOpen(true);
-        return;
+      if (template && template.components && template.components.length > 0) {
+        setRubricTemplate(template);
+        setRubricComponents(template.components);
+
+        // Initialize scores
+        const initialScores: { [id: string]: { score: number; feedback: string } } = {};
+        template.components.forEach((c: any) => {
+          initialScores[c.id] = { score: 0, feedback: '' };
+        });
+        setRubricScores(initialScores);
+        setCalculatedTotal(0);
+        setAllComponentsGraded(false);
+      } else {
+        // No rubric - still open full interface with simple grading mode
+        setRubricTemplate(null);
+        setRubricComponents([]);
+        setRubricScores({});
+        setCalculatedTotal(0);
+        setAllComponentsGraded(false);
       }
-
-      setRubricTemplate(template);
-      setRubricComponents(template.components);
-
-      // Initialize scores
-      const initialScores: { [id: string]: { score: number; feedback: string } } = {};
-      template.components.forEach((c: any) => {
-        initialScores[c.id] = { score: 0, feedback: '' };
-      });
-      setRubricScores(initialScores);
-      setCalculatedTotal(0);
-      setAllComponentsGraded(false);
-      setRubricGradingDialogOpen(true);
     } catch (error) {
       console.error('Error loading rubric for grading:', error);
-      // Fall back to simple grading
-      setGradeDialogOpen(true);
+      setRubricTemplate(null);
+      setRubricComponents([]);
+      setRubricScores({});
+      setCalculatedTotal(0);
+      setAllComponentsGraded(false);
     }
+
+    // Always open the full side-by-side marking interface
+    setRubricGradingDialogOpen(true);
   };
 
   const handleRubricScoreChange = (componentId: string, score: number) => {
@@ -463,65 +473,93 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
   };
 
   const handleSubmitRubricGrade = async () => {
-    if (!selectedSubmission || !rubricTemplate) {
-      toast.error('Missing submission or rubric data');
+    if (!selectedSubmission) {
+      toast.error('Missing submission data');
       return;
     }
 
-    // Validate all components are graded
-    const missingScores = rubricComponents.filter(c => {
-      const score = rubricScores[c.id]?.score;
-      return score === undefined || score === null;
-    });
+    const hasRubric = rubricTemplate && rubricComponents.length > 0;
+    const totalMarks = selectedSubmission.assessment?.total_marks || 100;
 
-    if (missingScores.length > 0) {
-      toast.error(`Please grade all components. Missing: ${missingScores.map(c => c.name).join(', ')}`);
-      return;
-    }
+    if (hasRubric) {
+      // Rubric-based grading validation
+      const missingScores = rubricComponents.filter(c => {
+        const score = rubricScores[c.id]?.score;
+        return score === undefined || score === null;
+      });
 
-    // Validate rubric is complete (100%)
-    if (!isRubricComplete()) {
-      toast.error('Rubric weights must total 100% before grading');
-      return;
-    }
+      if (missingScores.length > 0) {
+        toast.error(`Please grade all components. Missing: ${missingScores.map(c => c.name).join(', ')}`);
+        return;
+      }
 
-    setIsGrading(true);
-    try {
-      const scores: RubricScore[] = rubricComponents.map(c => ({
-        component_id: c.id,
-        score: rubricScores[c.id]?.score || 0,
-        feedback: rubricScores[c.id]?.feedback,
-      }));
+      if (!isRubricComplete()) {
+        toast.error('Rubric weights must total 100% before grading');
+        return;
+      }
 
-      const totalMarks = selectedSubmission.assessment?.total_marks || 100;
+      setIsGrading(true);
+      try {
+        const scores: RubricScore[] = rubricComponents.map(c => ({
+          component_id: c.id,
+          score: rubricScores[c.id]?.score || 0,
+          feedback: rubricScores[c.id]?.feedback,
+        }));
 
-      const result = await gradeSubmissionWithRubric(
-        selectedSubmission.id,
-        scores,
-        rubricComponents.map(c => ({
-          id: c.id,
-          weight_percentage: c.weight_percentage,
-          max_score: c.max_score,
-        })),
-        totalMarks,
-        gradeFeedback || undefined
-      );
+        const result = await gradeSubmissionWithRubric(
+          selectedSubmission.id,
+          scores,
+          rubricComponents.map(c => ({
+            id: c.id,
+            weight_percentage: c.weight_percentage,
+            max_score: c.max_score,
+          })),
+          totalMarks,
+          gradeFeedback || undefined
+        );
 
-      toast.success(`Graded successfully! Score: ${result.finalScore}/${totalMarks} (${result.weightedTotal.toFixed(2)}%)`);
+        toast.success(`Graded successfully! Score: ${result.finalScore}/${totalMarks} (${result.weightedTotal.toFixed(2)}%)`);
 
-      // Reset state
-      setRubricGradingDialogOpen(false);
-      setSelectedSubmission(null);
-      setRubricScores({});
-      setGradeFeedback('');
+        setRubricGradingDialogOpen(false);
+        setSelectedSubmission(null);
+        setRubricScores({});
+        setGradeFeedback('');
+        fetchData();
+      } catch (error: any) {
+        console.error('Grading error:', error);
+        toast.error(error.message || 'Failed to submit grade');
+      } finally {
+        setIsGrading(false);
+      }
+    } else {
+      // Simple grading mode (no rubric)
+      if (!gradeScore) {
+        toast.error('Please provide a grade score');
+        return;
+      }
 
-      // Refresh data
-      fetchData();
-    } catch (error: any) {
-      console.error('Grading error:', error);
-      toast.error(error.message || 'Failed to submit grade');
-    } finally {
-      setIsGrading(false);
+      setIsGrading(true);
+      try {
+        await gradeSubmission(
+          selectedSubmission.id,
+          parseInt(gradeScore),
+          totalMarks,
+          gradeFeedback || null
+        );
+
+        toast.success(`Graded successfully! Score: ${gradeScore}/${totalMarks}`);
+
+        setRubricGradingDialogOpen(false);
+        setSelectedSubmission(null);
+        setGradeScore('');
+        setGradeFeedback('');
+        fetchData();
+      } catch (error: any) {
+        console.error('Grading error:', error);
+        toast.error(error.message || 'Failed to submit grade');
+      } finally {
+        setIsGrading(false);
+      }
     }
   };
 
@@ -1356,18 +1394,30 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                     <div className="flex items-center gap-6">
                       <div>
                         <p className="text-xs uppercase tracking-wide opacity-70">Total</p>
-                        <p className="text-2xl font-bold">{calculatedTotal.toFixed(1)}%</p>
+                        <p className="text-2xl font-bold">
+                          {rubricComponents.length > 0
+                            ? `${calculatedTotal.toFixed(1)}%`
+                            : `${gradeScore ? ((parseInt(gradeScore) / (selectedSubmission?.assessment?.total_marks || 100)) * 100).toFixed(1) : '0.0'}%`
+                          }
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-wide opacity-70">Score</p>
                         <p className="text-2xl font-bold">
-                          {Math.round((calculatedTotal / 100) * (selectedSubmission?.assessment?.total_marks || 100))}
+                          {rubricComponents.length > 0
+                            ? Math.round((calculatedTotal / 100) * (selectedSubmission?.assessment?.total_marks || 100))
+                            : (gradeScore || '0')
+                          }
                           <span className="text-sm font-normal opacity-70">/{selectedSubmission?.assessment?.total_marks || 100}</span>
                         </p>
                       </div>
                     </div>
                     <div className="text-right text-sm">
-                      <span className="opacity-70">{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} scored</span>
+                      {rubricComponents.length > 0 ? (
+                        <span className="opacity-70">{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} scored</span>
+                      ) : (
+                        <span className="opacity-70">0/{rubricComponents.length} scored</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1375,79 +1425,127 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                 {/* Scrollable Rubric Components - Vertical scroll only */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden">
                   <div className="p-4">
-                    {/* Section Header */}
-                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
-                      <div className="flex items-center gap-2">
-                        <Calculator className="h-4 w-4 text-slate-500" />
-                        <span className="font-semibold text-slate-700">Rubric Components</span>
-                      </div>
-                      <Badge variant="secondary">{rubricComponents.length} items</Badge>
-                    </div>
+                    {rubricComponents.length > 0 ? (
+                      <>
+                        {/* Section Header */}
+                        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
+                          <div className="flex items-center gap-2">
+                            <Calculator className="h-4 w-4 text-slate-500" />
+                            <span className="font-semibold text-slate-700">Rubric Components</span>
+                          </div>
+                          <Badge variant="secondary">{rubricComponents.length} items</Badge>
+                        </div>
 
-                    {/* Rubric Component Cards */}
-                    <div className="space-y-3">
-                      {rubricComponents.map((component, index) => {
-                        const currentScore = rubricScores[component.id]?.score || 0;
-                        const contribution = (currentScore / component.max_score) * component.weight_percentage;
-                        const isScored = currentScore > 0;
+                        {/* Rubric Component Cards */}
+                        <div className="space-y-3">
+                          {rubricComponents.map((component, index) => {
+                            const currentScore = rubricScores[component.id]?.score || 0;
+                            const contribution = (currentScore / component.max_score) * component.weight_percentage;
+                            const isScored = currentScore > 0;
 
-                        return (
-                          <div
-                            key={component.id}
-                            className={`border rounded-lg p-3 transition-all ${isScored
-                              ? 'border-blue-300 bg-blue-50/50'
-                              : 'border-slate-200 bg-white hover:border-slate-300'
-                              }`}
-                          >
-                            {/* Component Header */}
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isScored
-                                  ? 'bg-blue-500 text-white'
-                                  : 'bg-slate-200 text-slate-600'
-                                  }`}>
-                                  {index + 1}
+                            return (
+                              <div
+                                key={component.id}
+                                className={`border rounded-lg p-3 transition-all ${isScored
+                                  ? 'border-blue-300 bg-blue-50/50'
+                                  : 'border-slate-200 bg-white hover:border-slate-300'
+                                  }`}
+                              >
+                                {/* Component Header */}
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isScored
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-slate-200 text-slate-600'
+                                      }`}>
+                                      {index + 1}
+                                    </div>
+                                    <h4 className="font-medium text-sm text-slate-800 truncate">{component.name}</h4>
+                                  </div>
+                                  <Badge variant="outline" className="flex-shrink-0 text-xs">
+                                    {component.weight_percentage}%
+                                  </Badge>
                                 </div>
-                                <h4 className="font-medium text-sm text-slate-800 truncate">{component.name}</h4>
-                              </div>
-                              <Badge variant="outline" className="flex-shrink-0 text-xs">
-                                {component.weight_percentage}%
-                              </Badge>
-                            </div>
 
-                            {/* Score Input Row */}
-                            <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 mb-2">
-                              <span className="text-xs text-slate-500">Score:</span>
+                                {/* Score Input Row */}
+                                <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 mb-2">
+                                  <span className="text-xs text-slate-500">Score:</span>
+                                  <Input
+                                    type="number"
+                                    value={rubricScores[component.id]?.score ?? ''}
+                                    onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
+                                    min="0"
+                                    max={component.max_score}
+                                    className="w-14 h-7 text-center text-sm font-semibold"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-xs text-slate-500">/{component.max_score}</span>
+                                  <div className="flex-1 min-w-[60px]">
+                                    <Progress value={(currentScore / component.max_score) * 100} className="h-1.5" />
+                                  </div>
+                                  <span className={`text-xs font-bold ${contribution > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+                                    +{contribution.toFixed(1)}%
+                                  </span>
+                                </div>
+
+                                {/* Feedback Textarea */}
+                                <Textarea
+                                  placeholder={`Feedback for ${component.name}...`}
+                                  value={rubricScores[component.id]?.feedback || ''}
+                                  onChange={(e) => handleRubricFeedbackChange(component.id, e.target.value)}
+                                  rows={2}
+                                  className="text-sm w-full resize-none"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      /* Simple Grading Mode - No Rubric */
+                      <>
+                        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
+                          <div className="flex items-center gap-2">
+                            <Calculator className="h-4 w-4 text-slate-500" />
+                            <span className="font-semibold text-slate-700">Direct Grading</span>
+                          </div>
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">No Rubric</Badge>
+                        </div>
+
+                        <div className="border rounded-lg p-4 bg-white space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-slate-700">Score (out of {selectedSubmission?.assessment?.total_marks || 100})</Label>
+                            <div className="flex items-center gap-3">
                               <Input
                                 type="number"
-                                value={rubricScores[component.id]?.score ?? ''}
-                                onChange={(e) => handleRubricScoreChange(component.id, parseInt(e.target.value) || 0)}
+                                placeholder="Enter marks"
+                                value={gradeScore}
+                                onChange={(e) => {
+                                  setGradeScore(e.target.value);
+                                  const score = parseInt(e.target.value) || 0;
+                                  const total = selectedSubmission?.assessment?.total_marks || 100;
+                                  setCalculatedTotal((score / total) * 100);
+                                }}
                                 min="0"
-                                max={component.max_score}
-                                className="w-14 h-7 text-center text-sm font-semibold"
-                                placeholder="0"
+                                max={selectedSubmission?.assessment?.total_marks || 100}
+                                className="w-32 text-center text-lg font-semibold"
                               />
-                              <span className="text-xs text-slate-500">/{component.max_score}</span>
-                              <div className="flex-1 min-w-[60px]">
-                                <Progress value={(currentScore / component.max_score) * 100} className="h-1.5" />
+                              <span className="text-slate-500">/ {selectedSubmission?.assessment?.total_marks || 100}</span>
+                              <div className="flex-1">
+                                <Progress value={gradeScore ? (parseInt(gradeScore) / (selectedSubmission?.assessment?.total_marks || 100)) * 100 : 0} className="h-2" />
                               </div>
-                              <span className={`text-xs font-bold ${contribution > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
-                                +{contribution.toFixed(1)}%
-                              </span>
                             </div>
-
-                            {/* Feedback Textarea */}
-                            <Textarea
-                              placeholder={`Feedback for ${component.name}...`}
-                              value={rubricScores[component.id]?.feedback || ''}
-                              onChange={(e) => handleRubricFeedbackChange(component.id, e.target.value)}
-                              rows={2}
-                              className="text-sm w-full resize-none"
-                            />
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-xs text-blue-600">
+                              <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
+                              No rubric template configured for this assessment. You can set up rubric components via the "Manage Rubric" option in Assessments.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {/* Overall Feedback Section */}
                     <div className="mt-3 border rounded-lg p-3 bg-slate-50">
@@ -1465,24 +1563,43 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                     </div>
 
                     {/* Status Message */}
-                    <div className={`mt-3 rounded-lg p-2 flex items-center gap-2 ${allComponentsGraded
-                      ? 'bg-green-50 border border-green-200'
-                      : 'bg-amber-50 border border-amber-200'
-                      }`}>
-                      {allComponentsGraded ? (
-                        <>
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium text-green-700">Ready to submit</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                          <span className="text-sm text-amber-700">
-                            {rubricComponents.length - rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length} remaining
-                          </span>
-                        </>
-                      )}
-                    </div>
+                    {rubricComponents.length > 0 ? (
+                      <div className={`mt-3 rounded-lg p-2 flex items-center gap-2 ${allComponentsGraded
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-amber-50 border border-amber-200'
+                        }`}>
+                        {allComponentsGraded ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-700">Ready to submit</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                            <span className="text-sm text-amber-700">
+                              {rubricComponents.length - rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length} remaining
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={`mt-3 rounded-lg p-2 flex items-center gap-2 ${gradeScore
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-amber-50 border border-amber-200'
+                        }`}>
+                        {gradeScore ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-700">Ready to submit</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                            <span className="text-sm text-amber-700">Enter a score to continue</span>
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     {/* Bottom padding for scroll */}
                     <div className="h-4" />
@@ -1495,10 +1612,21 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
             <div className="flex-shrink-0 bg-white border-t border-slate-200 px-4 py-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <div className={`w-2 h-2 rounded-full ${allComponentsGraded ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
-                  <span>{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} scored</span>
-                  <span className="text-slate-300">|</span>
-                  <span className="font-medium">Total: {calculatedTotal.toFixed(1)}%</span>
+                  {rubricComponents.length > 0 ? (
+                    <>
+                      <div className={`w-2 h-2 rounded-full ${allComponentsGraded ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
+                      <span>{rubricComponents.filter(c => (rubricScores[c.id]?.score || 0) > 0).length}/{rubricComponents.length} scored</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="font-medium">Total: {calculatedTotal.toFixed(1)}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className={`w-2 h-2 rounded-full ${gradeScore ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
+                      <span>{gradeScore ? '1/1' : '0/1'} scored</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="font-medium">Total: {gradeScore ? ((parseInt(gradeScore) / (selectedSubmission?.assessment?.total_marks || 100)) * 100).toFixed(1) : '0.0'}%</span>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setRubricGradingDialogOpen(false)}>
@@ -1507,7 +1635,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                   <Button
                     size="sm"
                     onClick={handleSubmitRubricGrade}
-                    disabled={isGrading || !allComponentsGraded}
+                    disabled={isGrading || (rubricComponents.length > 0 ? !allComponentsGraded : !gradeScore)}
                     className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   >
                     {isGrading ? (
@@ -1518,7 +1646,7 @@ export function InstructorDashboard({ accessToken, userProfile, onLogout }: Inst
                     ) : (
                       <>
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Submit Grade ({calculatedTotal.toFixed(1)}%)
+                        Submit Grade ({rubricComponents.length > 0 ? calculatedTotal.toFixed(1) : (gradeScore ? ((parseInt(gradeScore) / (selectedSubmission?.assessment?.total_marks || 100)) * 100).toFixed(1) : '0.0')}%)
                       </>
                     )}
                   </Button>
